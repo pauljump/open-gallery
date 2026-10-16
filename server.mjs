@@ -10,6 +10,7 @@ import { buildSite, printCatalogHTML, publicArtwork } from './lib/site.mjs';
 import { exportBundle, restoreBundle, verifyWorkspace, dataSize } from './lib/backup.mjs';
 import { artsyCandidates, buildArtsyPackage, artsyReconciliation, connectors } from './lib/artsy.mjs';
 import { FIELDS, AVAILABILITY } from './lib/fields.mjs';
+import { seedDemo } from './lib/demo-seed.mjs';
 
 const ROOT = new URL('.', import.meta.url).pathname;
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -51,6 +52,7 @@ export function createApp({ dataDir, host = '127.0.0.1' }) {
       fonts: Object.fromEntries(Object.entries(FONT_STACKS).map(([k, v]) => [k, v.label])), availability: AVAILABILITY,
       fields: FIELDS.map(({ key, label, visibility, type }) => ({ key, label, visibility, type })), customFields: store.listCustomFields(db),
       empty: store.stats(db).artworks === 0,
+      demo: db.prepare("SELECT value FROM meta WHERE key='demo'").get()?.value === 'true',
     };
   }
 
@@ -145,6 +147,10 @@ export function createApp({ dataDir, host = '127.0.0.1' }) {
       if (!isEmptyWorkspace(dataDir)) throw store.httpError(409, 'Restore only runs into an empty workspace. Start Open Gallery with a new data folder, then restore there.');
       db.close();
       try { return send(res, 200, restoreBundle(buf, dataDir)); } finally { db = openWorkspace(dataDir); }
+    }
+    if (method === 'POST' && p === '/demo') {
+      if (!isEmptyWorkspace(dataDir)) throw store.httpError(409, 'The sample gallery can only be loaded into an empty workspace.');
+      return send(res, 201, seedDemo(db, dataDir));
     }
     if (method === 'GET' && p === '/artsy/candidates') return send(res, 200, artsyCandidates(db));
     if (method === 'POST' && p === '/artsy/package') {

@@ -11,6 +11,7 @@ const { openWorkspace, isEmptyWorkspace } = await import('../lib/db.mjs');
 const { exportBundle, restoreBundle, verifyWorkspace } = await import('../lib/backup.mjs');
 const { buildSite } = await import('../lib/site.mjs');
 const { seedDemo } = await import('../lib/demo-seed.mjs');
+const awaitSettings = await import('../lib/settings.mjs');
 const { uploadImport, previewImport, applyImport, importImages } = await import('../lib/importer.mjs');
 
 const [cmd = 'help', ...rest] = process.argv.slice(2);
@@ -94,6 +95,20 @@ const commands = {
     console.log(JSON.stringify(r, null, 2));
     if (!r.ok) process.exit(2);
   },
+  settings() {
+    // For assistants and scripts: change presentation without editing code.
+    const { getSettings, updateSettings } = awaitSettings;
+    const db = openWorkspace(dataDir);
+    if (args[0] === 'set') {
+      const [, key, ...val] = args;
+      let v = val.join(' ');
+      if (v === 'true' || v === 'false') v = v === 'true'; else if (/^\d+$/.test(v) && key === 'theme.corner') v = Number(v);
+      const r = updateSettings(db, { [key]: v });
+      if (Object.keys(r.errors).length) { console.error(JSON.stringify(r.errors)); process.exit(1); }
+      console.log(`${key} = ${JSON.stringify(v)}`);
+    } else console.log(JSON.stringify(getSettings(db), null, 2));
+    db.close();
+  },
   doctor() {
     const [maj, min] = process.versions.node.split('.').map(Number);
     const ok = maj > 22 || (maj === 22 && min >= 13);
@@ -110,6 +125,7 @@ const commands = {
   open-gallery export [--out FILE]  Save a complete backup (.zip)
   open-gallery restore FILE --data EMPTY_FOLDER
   open-gallery build-site [--out DIR]   Make the public website from published works
+  open-gallery settings [set KEY VALUE]  Show or change settings (e.g. theme.colorAccent #224466)
   open-gallery verify               Check every image and relationship
   open-gallery doctor               Check this computer is ready
 

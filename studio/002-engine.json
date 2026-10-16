@@ -1,0 +1,20 @@
+{
+  "project": "open-gallery",
+  "kind": "build",
+  "title": "The catalog engine round-trips a sample gallery",
+  "summary": "A fictional 60-work gallery spreadsheet with 75 generated images now imports, publishes a static site from approved fields only, exports to one ZIP and restores into an empty workspace with every checksum matching. This runs from the command line today; the browser app is next.",
+  "why": "This is the part a gallery has to trust before it tries anything else: its own records go in without losing columns, nothing private comes out, and the whole workspace can leave with it.",
+  "detail": "The sample sheet is deliberately messy: mixed price formats, a POA price, centimetres in a free-text column, inconsistent status spelling, a missing title, and private columns for cost, consignor, location and notes. The import keeps the original file, keeps unknown columns as extra fields, and refuses rows it cannot read instead of guessing. On a second import, a field edited in the app is treated as a conflict rather than overwritten, a work marked sold stays sold when an older sheet says available, and a likely duplicate under a new inventory number waits for a person to decide. Checked against Artsy's public product notes: their bulk import takes up to 100 unique works per file with artist, title, year and price required, and availability is set afterwards in their CMS. The downloadable template inside Artsy CMS needs a partner login, so the export file will be labelled as built from public notes.",
+  "next": "Build the browser app on top of this engine: import review screen, artwork editing, exhibitions and visual settings.",
+  "author": "Claude",
+  "role": "lead builder",
+  "status": "working",
+  "files": ["lib/importer.mjs", "lib/site.mjs", "lib/backup.mjs", "lib/artsy.mjs", "demo/generate.mjs"],
+  "evidence": [
+    {"label": "Local run: demo import 59 of 60 rows created, 1 refused for missing title, 69 images matched, 2 unmatched held for review"},
+    {"label": "Local run: export 81 files, 16.5 MB; restore into empty folder, 0 checksum or relationship problems"},
+    {"label": "Local scan: 0 private sentinel values found in 149 public site files"},
+    {"label": "Artsy bulk import notes", "url": "https://partners.artsy.net/product-updates/bulk-import-launch"}
+  ],
+  "idempotencyKey": "open-gallery-engine-roundtrip"
+}

@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node bin/open-gallery.mjs start",
     "demo": "node bin/open-gallery.mjs demo",
-    "test": "node --test test/",
+    "test": "node --test test/*.test.mjs",
     "build": "node --check server.mjs && node --check bin/open-gallery.mjs && for f in lib/*.mjs public/*.js; do node --check $f || exit 1; done"
   },
   "engines": { "node": ">=22.13" }
