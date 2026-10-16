@@ -1,0 +1,15 @@
+{
+  "name": "open-gallery",
+  "version": "0.1.0",
+  "description": "Free, open source inventory and catalog software for galleries. Runs on your own computer, imports your own files, exports everything.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bin": { "open-gallery": "bin/open-gallery.mjs" },
+  "scripts": {
+    "start": "node bin/open-gallery.mjs start",
+    "demo": "node bin/open-gallery.mjs demo",
+    "test": "node --test test/",
+    "build": "node --check server.mjs && node --check bin/open-gallery.mjs && for f in lib/*.mjs public/*.js; do node --check $f || exit 1; done"
+  },
+  "engines": { "node": ">=22.13" }
+}

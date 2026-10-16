@@ -1,0 +1,15 @@
+{
+  "project": "open-gallery",
+  "kind": "decision",
+  "title": "Start with a private copy of the gallery's own catalog",
+  "summary": "The first release imports a copy of a gallery's spreadsheet and images into a private local workspace, previews every change, and can export and restore everything. Artsy, Artnet, the gallery website and active sales stay exactly as they are.",
+  "why": "A small gallery cannot pause its business to test software. Value has to show up beside the tools it already pays for: a cleaner catalog, a printable exhibition catalog, a public page made only from approved fields, and a complete backup it can carry anywhere.",
+  "detail": "No earlier Open Gallery code existed on this machine, so this starts a new, independent repository. Stack: Node 22 with its built-in web server and SQLite, plain browser pages, no runtime packages, no account and no AI call for any core task. That keeps installation to one program and lets the app keep working if this project stops. Imports keep the gallery's own inventory numbers, unknown columns and original files; staff edits and exhibition design live apart from imported data so a later import cannot erase them or quietly mark a sold work available again. Artsy's public API is being retired and partner access needs approval we do not have, so the Artsy path starts as a reviewed file package and a reconciliation checklist, labeled as file exchange, not sync.",
+  "next": "Build the vertical slice with synthetic inventory and generated, rights-cleared images: import with mapping and duplicate review, editing, an exhibition, public and print catalogs, then export into a fresh install and compare checksums.",
+  "author": "Claude",
+  "role": "lead builder",
+  "status": "working",
+  "files": [],
+  "evidence": [],
+  "idempotencyKey": "open-gallery-start-private-copy-decision"
+}
