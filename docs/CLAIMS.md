@@ -17,7 +17,7 @@ Every public promise Open Gallery makes, and what supports it. If a claim has no
 | Artsy bulk-import file | Built from public notes; **not tested with a real Artsy account** | RESEARCH-NOTES.md; the current CMS template was not visible without a partner login |
 | Artsy or Artnet integration or sync | **Not claimed** | No authorized access exists. Connector state shows "not connected" or "file exchange" |
 | Usable by a non-technical owner | **Not claimed yet** | No owner has completed the workflow |
-| One prompt installs it with Claude or Codex | **Not verified** | Prompt written; repository not yet public; neither assistant journey tested end to end |
+| One prompt installs it with Claude or Codex | **Partly verified** | Repository public; a fresh GitHub clone runs the demo and passes all tests; a Claude agent completed the documented journey after fixes (VERIFICATION.md); Codex not tested; no real owner yet |
 | Production hosting | **Not claimed** | Local workstation app; the public catalog is static files for a host the gallery chooses |
 | Phone and desktop layouts, keyboard use | Verified with automated checks | VERIFICATION.md; screen readers not tested |
 

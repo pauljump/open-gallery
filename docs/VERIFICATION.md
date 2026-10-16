@@ -4,7 +4,7 @@ Measured 2026-10-16 on an Apple M4 Mac mini, macOS, Node.js 22.22.2, using synth
 
 ## Automated suite: `npm test`
 
-25 tests, 25 passing, about 8 seconds.
+26 tests, 26 passing, about 8 seconds.
 
 | Area | What is asserted |
 |---|---|
@@ -29,6 +29,12 @@ Upload 9 ms, preview 38 ms, apply 560 ms, repeat preview 605 ms, search 2 to 3 m
 - **Basic accessibility scan** on 10 app views and 3 public pages: every form control labelled, every image has alt text, no empty buttons or links, one h1 per page, no duplicate ids (one duplicate-id issue found on the Artists page and fixed).
 - Settings page computes text contrast and warns below 4.5:1. Default themes: app text about 16:1, secondary text about 5.9:1; public site secondary text about 5.4:1.
 
+## Assistant install journey (Claude)
+
+A separate Claude agent played the assistant for a fictional owner ("Lantern Street Gallery"), following only README, AGENTS.md, INSTALL-PROMPT and OPERATING: doctor, clone, preview, apply (1 row without a title skipped), images, warm serif style through `settings set`, 30 works published, a 6-work exhibition, public build, printable catalog, export (10.2 MB) and a successful test restore, in about 2 minutes of commands. Nothing public or paid happened.
+
+It found six problems, all fixed and re-checked before tagging 0.1.0: the command-line preview stored images as unmatched copies (now images import only after apply, and a later match absorbs an earlier unmatched copy; test added); `doctor` created the data folder (now it creates nothing); the preview did not say which rows needed attention (now listed); publishing works and creating exhibitions had no documented command (`publish-works`, `exhibition` added); `--data` had to be repeated (now remembered after `start` or `demo`); the bare `open-gallery` command needed explanation (documented, with `npm link` as an option).
+
 ## Upgrade and rollback
 
 A workspace created by the first engine commit (`16a2afe`), with a changed accent colour and a custom CSS file, opened in the current code with data verified, settings and CSS intact and included in the rebuilt site. The older code still opened it afterwards (same schema). A future schema change will be refused by older versions by design (tested).
@@ -37,7 +43,7 @@ A workspace created by the first engine commit (`16a2afe`), with a changed accen
 
 - A real gallery owner completing the workflow, or real gallery spreadsheets.
 - Screen reader use (VoiceOver, NVDA). Only automated checks were run.
-- Claude and Codex install journeys from the prompt.
+- The Codex install journey, and any assistant journey run by a real owner.
 - Windows and Linux. Only macOS was tested.
 - Opening the generated XLSX in Excel or Numbers, and uploading the Artsy file to a real Artsy account.
 - Removal of camera metadata from public JPEGs (images are re-encoded through the browser canvas, which does not copy metadata, but this was not tested with a real photo).

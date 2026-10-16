@@ -134,3 +134,25 @@ test('performance: 1,500-work import and search', () => {
     assert.ok(s2 - s1 < 500, `filtered search took ${ms(s2 - s1)} ms`);
   } finally { ws.close(); rm(fx); }
 });
+
+test('images uploaded before their works exist are matched later without duplicates', async () => {
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { openWorkspace } = await import('../lib/db.mjs');
+  const { importImages, uploadImport, applyImport } = await import('../lib/importer.mjs');
+  const { encodePNG } = await import('../lib/png.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'og-orphan-'));
+  const db = openWorkspace(dir);
+  try {
+    const png = encodePNG(4, 4, new Uint8Array(48).fill(120));
+    const early = importImages(db, dir, [{ name: 'X-1.png', buf: png }]);
+    assert.equal(early.unmatched, 1);
+    const up = uploadImport(db, dir, 'a.csv', Buffer.from('Stock No.,Artist,Title\nX-1,Ann Example,One\n'));
+    applyImport(db, dir, up.id);
+    const later = importImages(db, dir, [{ name: 'X-1.png', buf: png }]);
+    assert.equal(later.matched, 1);
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM media').get().n, 1, 'one image record, not two');
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM media WHERE artwork_id IS NULL').get().n, 0);
+  } finally { db.close(); rmSync(dir, { recursive: true, force: true }); }
+});

@@ -2,6 +2,9 @@
 
 ## Daily use
 
+Commands are shown as `open-gallery …`. Run them from the app folder as `node bin/open-gallery.mjs …`, or run `npm link` once in that folder so the short form works everywhere.
+
+
 Start: `open-gallery start --open` (or `node bin/open-gallery.mjs start --open` from the app folder). The app opens at http://localhost:4380 and only this computer can reach it. Stop it with Ctrl+C or by closing the terminal. Nothing runs in the background when it is stopped.
 
 - **Works**: search (press `/`), filter by artist, availability, published or private. Select several works to publish, make private or change availability at once.

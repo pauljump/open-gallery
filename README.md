@@ -21,7 +21,7 @@ No account, subscription, commission or AI service is needed for any of this.
 You need [Node.js](https://nodejs.org) 22.13 or newer.
 
 ```sh
-git clone <this repository> open-gallery
+git clone https://github.com/pauljump/open-gallery.git
 cd open-gallery
 node bin/open-gallery.mjs demo --open
 ```

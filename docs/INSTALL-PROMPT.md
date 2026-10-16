@@ -18,4 +18,4 @@ It should **not**: sign you up for anything, upload anything, change your domain
 
 After setup you do not need the assistant. Open Gallery is an ordinary app: run `open-gallery start --open` (or the shortcut the assistant made) and use it in your browser.
 
-> Status: the repository address above is where the code is intended to be published. Until it is public, the assistant needs a local copy. Claude and Codex journeys have not yet been tested end to end by a gallery owner.
+> Status: the repository is public. An assistant run of this prompt has been tested on macOS (see VERIFICATION.md). Codex and a real gallery owner have not tested it yet.
