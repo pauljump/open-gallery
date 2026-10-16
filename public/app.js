@@ -47,7 +47,8 @@ function focusView() { const h = $('h1', view); if (h) { h.tabIndex = -1; h.focu
 // ---------------------------------------------------------------- router
 const routes = [
   [/^\/?$/, home], [/^\/works$/, works], [/^\/works\/new$/, () => workEdit(null)], [/^\/works\/(aw_\w+)$/, (m) => workEdit(m[1])],
-  [/^\/artists$/, artists], [/^\/exhibitions$/, exhibitions], [/^\/exhibitions\/(ex_\w+)$/, (m) => exhibitionEdit(m[1])],
+  [/^\/artists$/, artists], [/^\/contacts$/, contacts], [/^\/contacts\/(ct_\w+)$/, (m) => contactEdit(m[1])], [/^\/money$/, moneyView],
+  [/^\/statements\/(artist|contact)\/((?:ar|ct)_\w+)$/, statementView], [/^\/exhibitions$/, exhibitions], [/^\/exhibitions\/(ex_\w+)$/, (m) => exhibitionEdit(m[1])],
   [/^\/import$/, importView], [/^\/publish$/, publish], [/^\/settings$/, settingsView], [/^\/backup$/, backup],
 ];
 let dirty = false;
@@ -95,7 +96,7 @@ async function home() {
     return;
   }
   const last = STATE.lastBuild;
-  const audit = await api('/audit?limit=60');
+  const [audit, mon] = await Promise.all([api('/audit?limit=60'), api('/money')]);
   view.innerHTML = `<h1>${esc(STATE.settings.gallery.name)}</h1>
 <p class="sub">${demo ? 'This is the fictional sample gallery. Every artist, work and price is invented. ' : ''}Private workspace on this computer.</p>
 <div class="stats">
@@ -106,6 +107,11 @@ ${s.withoutImages || s.unassignedImages || s.missingFromLastImport ? `<div class
     s.withoutImages ? `<a href="#/works?visibility=noimage">${s.withoutImages} work${s.withoutImages === 1 ? '' : 's'} without images</a>` : '',
     s.unassignedImages ? `<a href="#/import">${s.unassignedImages} image${s.unassignedImages === 1 ? '' : 's'} not matched to a work</a>` : '',
     s.missingFromLastImport ? `<a href="#/works?visibility=missing">${s.missingFromLastImport} work${s.missingFromLastImport === 1 ? ' was' : 's were'} not in your last spreadsheet</a> (kept, not deleted)` : '',
+  ].filter(Boolean).join(' · ')}</div>` : ''}
+${mon.totals.overdue || mon.holdsSoon.length || mon.consignmentsSoon.length ? `<div class="notice ${mon.totals.overdue ? 'bad' : 'warn'}">${[
+    mon.totals.overdue ? `<a href="#/money"><strong>${esc(wholeCents(mon.totals.overdue))} overdue</strong> to artists and consignors</a>` : '',
+    mon.holdsSoon.length ? `<a href="#/money">${mon.holdsSoon.length} hold${mon.holdsSoon.length === 1 ? '' : 's'} ending within a day</a>` : '',
+    mon.consignmentsSoon.length ? `<a href="#/money">${mon.consignmentsSoon.length} consignment${mon.consignmentsSoon.length === 1 ? '' : 's'} ending within 30 days</a>` : '',
   ].filter(Boolean).join(' · ')}</div>` : ''}
 <div class="grid2">
 <div class="card"><h2>Sales channels</h2>${STATE.connectors.map(connCard).join('')}
@@ -273,6 +279,7 @@ ${id ? `<div class="card"><h3>Images</h3><div class="media-grid" id="media">${aw
 <button class="small" data-rm="${m.id}" aria-label="Remove image ${i + 1}">Remove</button></div>
 <label class="check small"><input type="checkbox" data-pubimg="${m.id}" ${m.public ? 'checked' : ''}> Public</label></div>`).join('')}</div>
 <div class="drop" id="drop" style="margin-top:10px"><label for="img-in" style="margin:0;color:inherit;cursor:pointer">Drop images here or <u>choose files</u></label><input id="img-in" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple class="sr"></div></div>
+<div class="card" id="ops" style="margin-top:14px"><p class="small muted">Loading ownership and sales…</p></div>
 <div class="card" style="margin-top:14px"><h3>What the public sees</h3>${aw.public ? '' : '<p class="notice">Private. This work does not appear in any public page or feed.</p>'}
 <dl class="preview-box"><dt>Caption</dt><dd>${esc(pub.artist.name)}, <i>${esc(pub.title)}</i>${pub.year ? `, ${esc(pub.year)}` : ''}</dd>
 ${pub.medium ? `<dt>Medium</dt><dd>${esc(pub.medium)}</dd>` : ''}${pub.dimensions_display.length ? `<dt>Dimensions</dt><dd>${pub.dimensions_display.map(esc).join('<br>')}</dd>` : ''}
@@ -324,6 +331,7 @@ ${aw.exhibitions.length ? `<div class="card" style="margin-top:14px"><h3>In exhi
   $$('[data-mv]').forEach((b) => { b.onclick = async () => { await api(`/media/${b.dataset.mv}`, { method: 'PATCH', body: { position: Number(b.dataset.pos) } }).catch(fail); await workEdit(id); $(`[data-mv="${b.dataset.mv}"]`)?.focus(); }; });
   $$('[data-rm]').forEach((b) => { b.onclick = async () => { if (!confirmInline(b, 'Sure?')) return; await api(`/media/${b.dataset.rm}`, { method: 'DELETE' }).catch(fail); workEdit(id); }; });
   $$('[data-pubimg]').forEach((c) => { c.onchange = () => api(`/media/${c.dataset.pubimg}`, { method: 'PATCH', body: { public: c.checked } }).then(() => toast(c.checked ? 'Image will be public' : 'Image kept private')).catch(fail); });
+  opsCard(id, aw).catch(fail);
 }
 
 function confirmInline(btn, msg) {
@@ -346,8 +354,8 @@ async function artists() {
   view.innerHTML = `<h1>Artists</h1><p class="sub">Artists are created from your works. Add a short bio and it appears on the public artist page.</p>
 <div class="tablewrap"><table><thead><tr><th>Artist</th><th>Works</th><th>Available</th><th></th></tr></thead><tbody>
 ${list.map((a) => `<tr><td><strong>${esc(a.name)}</strong>${a.nationality || a.birth_year ? `<div class="small muted">${esc([a.nationality, a.birth_year && `b. ${a.birth_year}`].filter(Boolean).join(', '))}</div>` : ''}</td>
-<td><a href="#/works?artist=${a.id}">${a.works}</a></td><td>${a.available || 0}</td><td><button class="small" data-edit="${a.id}">Edit</button></td></tr>
-<tr id="edit-${a.id}" hidden><td colspan="4"><form data-form="${a.id}" class="formgrid">${inputRow('name', 'Name', a.name, { idp: a.id })}${inputRow('nationality', 'Nationality', a.nationality, { idp: a.id })}${inputRow('birth_year', 'Born', a.birth_year, { idp: a.id })}${inputRow('website', 'Website', a.website, { type: 'url', idp: a.id })}${inputRow('bio', 'Bio', a.bio, { type: 'textarea', wide: true, idp: a.id })}<div class="row wide"><button class="primary" type="submit">Save</button></div></form></td></tr>`).join('')}
+<td><a href="#/works?artist=${a.id}">${a.works}</a></td><td>${a.available || 0}</td><td><button class="small" data-edit="${a.id}">Edit</button> <a class="btn small" href="#/statements/artist/${a.id}">Statement</a></td></tr>
+<tr id="edit-${a.id}" hidden><td colspan="4"><form data-form="${a.id}" class="formgrid">${inputRow('name', 'Name', a.name, { idp: a.id })}${inputRow('nationality', 'Nationality', a.nationality, { idp: a.id })}${inputRow('birth_year', 'Born', a.birth_year, { idp: a.id })}${inputRow('website', 'Website', a.website, { type: 'url', idp: a.id })}${inputRow('bio', 'Bio', a.bio, { type: 'textarea', wide: true, idp: a.id })}${inputRow('default_split', "Artist's usual share of sales (%)", a.default_split ?? '', { type: 'number', attrs: 'min="0" max="100" step="any"', idp: a.id, help: 'Used for new consignments from this artist' })}${inputRow('payee_note', 'Payment details note (private)', a.payee_note, { idp: a.id })}<div class="row wide"><button class="primary" type="submit">Save</button></div></form></td></tr>`).join('')}
 </tbody></table></div>`;
   $$('[data-edit]').forEach((b) => { b.onclick = () => { const r = $(`#edit-${b.dataset.edit}`); r.hidden = !r.hidden; if (!r.hidden) $('input', r).focus(); }; });
   $$('[data-form]').forEach((f) => { f.onsubmit = async (e) => { e.preventDefault(); try { await api(`/artists/${f.dataset.form}`, { method: 'PATCH', body: Object.fromEntries(new FormData(f)) }); toast('Saved'); artists(); } catch (err) { fail(err); } }; });
@@ -688,6 +696,190 @@ async function backup() {
     catch (e) { $('#restore-out').innerHTML = `<p class="notice bad">${esc(e.message)}</p>`; }
   };
   if ($('#restore-in')) { $('#restore-in').onchange = (e) => restore(e.target.files[0]); dropZone($('#restore-drop'), (f) => restore(f[0])); }
+}
+
+// ---------------------------------------------------------------- operations: money helpers
+const cents = (c, cur) => c == null ? '' : new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || STATE.settings.catalog.currency || 'USD' }).format(c / 100);
+const wholeCents = (c, cur) => c == null ? '' : new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || STATE.settings.catalog.currency || 'USD', maximumFractionDigits: 0 }).format(Math.round(c / 100));
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const inHours = (iso) => { if (!iso) return 'no expiry'; const h = (Date.parse(iso) - Date.now()) / 3600e3; return h <= 0 ? 'expired' : h < 1 ? 'under an hour left' : h < 48 ? `${Math.round(h)} h left` : `${Math.round(h / 24)} days left`; };
+const PAYOUT_LABEL = { awaiting_buyer: 'Waiting for the buyer to pay', payable: 'Owed to consignor', overdue: 'Overdue to consignor', paid_out: 'Consignor paid', none: 'Gallery stock: nothing owed' };
+const OWNER_LABEL = { artist_consignment: 'Consigned by the artist', collector_consignment: 'Consigned by a collector', gallery: 'Gallery stock', unknown: 'Owner not recorded' };
+
+// The "Ownership & sales" card on a work page.
+async function opsCard(id, aw) {
+  const box = $('#ops');
+  if (!box) return;
+  const ops = await api(`/artworks/${id}/operations`);
+  const k = ops.owner.consignment;
+  const sale = ops.sales.find((s) => s.status !== 'cancelled');
+  const holds = ops.holds.filter((h) => h.status === 'active');
+  const cur = aw.currency || STATE.settings.catalog.currency;
+  box.innerHTML = `<h3>Ownership and sales <span class="pill">Private</span></h3>
+<p><strong>${esc(OWNER_LABEL[ops.owner.kind])}</strong>${ops.owner.name && ops.owner.kind !== 'gallery' ? `: ${esc(ops.owner.name)}` : ''}</p>
+${k ? `<p class="small">${k.split_pct}% to consignor${k.discount_limit_pct != null ? `, discounts up to ${k.discount_limit_pct}% without approval` : ''}, discount borne ${({ shared: 'pro rata', gallery: 'by the gallery', consignor: 'by the consignor' })[k.discount_borne_by]}.
+${k.start_date ? `From ${esc(k.start_date)}` : ''}${k.end_date ? ` to ${esc(k.end_date)}` : ''}${k.insured_value ? `. Insured for ${esc(cents(k.insured_value, cur))}${k.insured_by ? ` by ${esc(k.insured_by)}` : ''}` : ''}.</p>
+<div class="row"><button class="small" id="k-edit">Edit terms</button><button class="small" id="k-return">Mark returned</button></div>`
+    : sale ? '' : `<div class="row"><button class="small" id="k-new">Record consignment</button>${ops.owner.kind === 'gallery' ? '<button class="small" id="own-off">Not gallery stock</button>' : '<button class="small" id="own-on">Gallery owns it</button>'}</div>`}
+<form id="k-form" hidden class="formgrid" style="margin-top:10px">
+${selectRow('from', 'Consigned by', k?.contact_id ? 'contact' : 'artist', [['artist', 'The artist'], ['contact', 'A collector or another gallery']])}
+${inputRow('contact', 'Collector or gallery name', k?.contact_name || '', { idp: 'k-', attrs: 'list="contact-list" autocomplete="off"' })}
+${inputRow('split_pct', 'Consignor share (%)', k?.split_pct ?? '', { idp: 'k-', type: 'number', attrs: 'min="0" max="100" step="any"', help: 'Leave blank to use the artist default or 50%' })}
+${inputRow('discount_limit_pct', 'Discount allowed without approval (%)', k?.discount_limit_pct ?? '', { idp: 'k-', type: 'number', attrs: 'min="0" max="100" step="any"' })}
+${selectRow('discount_borne_by', 'Who absorbs a discount', k?.discount_borne_by || 'shared', [['shared', 'Shared pro rata'], ['gallery', 'The gallery'], ['consignor', 'The consignor']])}
+${inputRow('start_date', 'Start', k?.start_date || todayStr(), { idp: 'k-', type: 'date' })}${inputRow('end_date', 'End', k?.end_date || '', { idp: 'k-', type: 'date' })}
+${inputRow('insured_value', 'Insured value', k?.insured_value != null ? k.insured_value / 100 : '', { idp: 'k-', type: 'number', attrs: 'min="0" step="any"' })}${inputRow('insured_by', 'Insured by', k?.insured_by || '', { idp: 'k-' })}
+${inputRow('terms', 'Other terms', k?.terms || '', { idp: 'k-', type: 'textarea', wide: true })}
+<div class="row wide"><button class="primary">Save consignment</button></div></form>
+
+<h3>Holds</h3>
+${holds.length ? `<ol class="list small">${holds.map((h, i) => `<li><span class="grow">${i === 0 ? '<strong>First:</strong> ' : ''}${esc(h.contact_name || 'Unnamed')} <span class="muted">${esc(inHours(h.expires_at))}</span></span><button class="small" data-release="${h.id}">Release</button></li>`).join('')}</ol>` : '<p class="small muted">No holds.</p>'}
+${sale || ['sold', 'nfs'].includes(aw.availability) ? '' : `<form id="hold-form" class="row" style="margin-top:6px"><label class="sr" for="hold-who">Hold for</label><input id="hold-who" name="contact" placeholder="Hold for (name)" list="contact-list" style="flex:2;min-width:120px" required>
+<label class="sr" for="hold-hours">Hours</label><input id="hold-hours" name="hours" type="number" min="0" value="${STATE.settings.operations.holdHours}" style="width:80px" aria-describedby="hold-hint"><button class="small">Place hold</button></form><p class="small muted" id="hold-hint">Hours until it expires; 0 for no expiry.</p>`}
+
+<h3>Sale</h3>
+${sale ? saleSummary(sale) : ['sold'].includes(aw.availability) ? '<p class="small muted">Marked sold, but no sale was recorded here. Record it to track payment and what the consignor is owed.</p><button class="small" id="sale-open">Record the sale</button>' : '<button class="small" id="sale-open">Record a sale</button>'}
+<form id="sale-form" hidden class="formgrid" style="margin-top:10px">
+${inputRow('buyer', 'Buyer', holds[0]?.contact_name || '', { idp: 's-', attrs: 'list="contact-list" autocomplete="off" required' })}
+${inputRow('sale_date', 'Sale date', todayStr(), { idp: 's-', type: 'date' })}
+${inputRow('list_price', 'List price', aw.price ?? '', { idp: 's-', type: 'number', attrs: 'min="0" step="any"' })}
+${inputRow('price', 'Sale price (before tax)', aw.price ?? '', { idp: 's-', type: 'number', attrs: 'min="0" step="any" required' })}
+${inputRow('tax', 'Sales tax / VAT', '', { idp: 's-', type: 'number', attrs: 'min="0" step="any"' })}${inputRow('shipping', 'Shipping charged', '', { idp: 's-', type: 'number', attrs: 'min="0" step="any"' })}
+${inputRow('deposit', 'Deposit received now', '', { idp: 's-', type: 'number', attrs: 'min="0" step="any"' })}${inputRow('invoice_number', 'Invoice number', '', { idp: 's-' })}
+<label class="check wide" id="approve-row" hidden><input type="checkbox" name="discount_approved"> The consignor approved this discount</label>
+<div class="row wide"><button class="primary">Record sale</button><span class="small muted">Marks the work sold. Other holds are released.</span></div></form>
+<datalist id="contact-list">${(await api('/contacts')).map((c) => `<option value="${esc(c.display_name)}">`).join('')}</datalist>`;
+
+  const show = (sel) => { const f = $(sel); f.hidden = !f.hidden; if (!f.hidden) $('input,select', f)?.focus(); };
+  $('#k-new') && ($('#k-new').onclick = () => show('#k-form'));
+  $('#k-edit') && ($('#k-edit').onclick = () => show('#k-form'));
+  $('#own-on') && ($('#own-on').onclick = () => api(`/artworks/${id}/gallery-owned`, { method: 'PUT', body: { owned: true } }).then(() => opsCard(id, aw)).catch(fail));
+  $('#own-off') && ($('#own-off').onclick = () => api(`/artworks/${id}/gallery-owned`, { method: 'PUT', body: { owned: false } }).then(() => opsCard(id, aw)).catch(fail));
+  $('#k-return') && ($('#k-return').onclick = async (e) => { if (!confirmInline(e.target, 'Returned to consignor? Click again')) return; await api(`/consignments/${k.id}`, { method: 'PATCH', body: { status: 'returned' } }).catch(fail); toast('Consignment ended'); opsCard(id, aw); });
+  $('#k-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target));
+    try { if (k) await api(`/consignments/${k.id}`, { method: 'PATCH', body }); else await api(`/artworks/${id}/consignments`, { method: 'POST', body }); toast('Consignment saved'); opsCard(id, aw); } catch (err) { fail(err); }
+  };
+  $$('[data-release]').forEach((b) => { b.onclick = () => api(`/holds/${b.dataset.release}`, { method: 'PATCH', body: { status: 'released' } }).then(() => { toast('Hold released'); opsCard(id, aw); }).catch(fail); });
+  $('#hold-form') && ($('#hold-form').onsubmit = async (e) => { e.preventDefault(); try { await api(`/artworks/${id}/holds`, { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); toast('Hold placed'); opsCard(id, aw); } catch (err) { fail(err); } });
+  $('#sale-open') && ($('#sale-open').onclick = () => show('#sale-form'));
+  $('#sale-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = Object.fromEntries(fd); body.discount_approved = fd.get('discount_approved') === 'on';
+    try { await api(`/artworks/${id}/sales`, { method: 'POST', body }); toast('Sale recorded'); workEdit(id); }
+    catch (err) { if (err.needsApproval) $('#approve-row').hidden = false; fail(err); }
+  };
+  if (sale) wireSale(sale, () => opsCard(id, aw));
+}
+
+function saleSummary(s) {
+  const c = (n) => cents(n, s.currency);
+  return `<dl class="preview-box">
+<dt>Sold to</dt><dd>${s.buyer ? `<a href="#/contacts/${s.buyer.id}">${esc(s.buyer.display_name)}</a>` : 'Not recorded'} on ${esc(s.sale_date)}${s.invoice_number ? `, invoice ${esc(s.invoice_number)}` : ''}</dd>
+<dt>Price</dt><dd>${c(s.price_cents)}${s.list_cents && s.list_cents !== s.price_cents ? ` <span class="muted">(list ${c(s.list_cents)}, discount ${c(s.split.discount)})</span>` : ''}${s.tax_cents ? ` + tax ${c(s.tax_cents)}` : ''}${s.shipping_cents ? ` + shipping ${c(s.shipping_cents)}` : ''}</dd>
+<dt>Buyer has paid</dt><dd>${c(s.paid_cents)} of ${c(s.total_cents)}${s.balance_cents ? ` <strong>· ${c(s.balance_cents)} outstanding</strong>` : ' · paid in full'}</dd>
+${s.consignment ? `<dt>${esc(s.payee)} receives</dt><dd>${c(s.split.consignorGross)} (${s.split_pct}%)${s.split.deductions ? ` − ${c(s.split.deductions)} deductions = <strong>${c(s.split.net)}</strong>` : ''}</dd>
+<dt>Gallery keeps</dt><dd>${c(s.split.galleryShare)}</dd>
+<dt>Payout</dt><dd><span class="pill ${s.payout_status === 'overdue' ? 'bad' : s.payout_status === 'paid_out' ? 'ok' : 'warn'}">${esc(PAYOUT_LABEL[s.payout_status])}</span>${s.payout_due_on ? ` due ${esc(s.payout_due_on)}` : ''}</dd>` : ''}
+</dl>
+${s.deductions.length ? `<ul class="small">${s.deductions.map((d) => `<li>${esc(d.description)}: ${c(d.amount_cents)}</li>`).join('')}</ul>` : ''}
+${s.balance_cents ? `<form id="pay-form" class="row"><label class="sr" for="pay-amt">Payment received</label><input id="pay-amt" name="amount" type="number" min="0" step="any" value="${s.balance_cents / 100}" style="width:120px"><label class="sr" for="pay-date">Date</label><input id="pay-date" name="paid_on" type="date" value="${todayStr()}" style="width:150px"><button class="small">Record payment</button></form>` : ''}
+${s.consignment && s.payout_status !== 'paid_out' ? `<form id="ded-form" class="row" style="margin-top:6px"><label class="sr" for="ded-what">Deduction</label><input id="ded-what" name="description" placeholder="Deduction, e.g. framing" style="flex:2;min-width:120px"><label class="sr" for="ded-amt">Amount</label><input id="ded-amt" name="amount" type="number" min="0" step="any" placeholder="Amount" style="width:100px"><button class="small">Add</button></form>` : ''}
+${s.payout_status !== 'paid_out' ? '<button class="small danger" id="sale-cancel" style="margin-top:8px">Cancel sale…</button>' : ''}`;
+}
+
+function wireSale(s, refresh) {
+  $('#pay-form') && ($('#pay-form').onsubmit = async (e) => { e.preventDefault(); try { await api(`/sales/${s.id}/payments`, { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); toast('Payment recorded'); refresh(); } catch (err) { fail(err); } });
+  $('#ded-form') && ($('#ded-form').onsubmit = async (e) => { e.preventDefault(); try { await api(`/sales/${s.id}/deductions`, { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); toast('Deduction added'); refresh(); } catch (err) { fail(err); } });
+  $('#sale-cancel') && ($('#sale-cancel').onclick = async (e) => { if (!confirmInline(e.target, 'Cancel this sale? Click again')) return; try { await api(`/sales/${s.id}/cancel`, { method: 'POST', body: {} }); toast('Sale cancelled; the work is available again'); route(); } catch (err) { fail(err); } });
+}
+
+// ---------------------------------------------------------------- contacts
+async function contacts(_m, qs) {
+  setTitle('Contacts');
+  const q = qs.get('q') || '';
+  view.innerHTML = `<div class="spread"><div><h1>Contacts</h1><p class="sub" style="margin:0">Collectors, consignors and other galleries. Always private.</p></div>
+<form id="new-ct" class="row"><label class="sr" for="ct-name">New contact name</label><input id="ct-name" placeholder="New contact name" style="width:220px" required><button class="primary">Add</button></form></div>
+<div class="filters" style="grid-template-columns:1fr"><div><label for="q">Search</label><input id="q" value="${esc(q)}" placeholder="Name or email" autocomplete="off"></div></div>
+<div id="ct-list"></div>`;
+  const load = async () => {
+    const list = await api(`/contacts?q=${encodeURIComponent($('#q').value)}`);
+    $('#ct-list').innerHTML = list.length ? `<div class="tablewrap"><table><thead><tr><th>Name</th><th class="hide-sm">Email</th><th>Purchases</th><th>Holds</th><th>Consigned</th></tr></thead><tbody>
+${list.map((c) => `<tr><td><a href="#/contacts/${c.id}"><strong>${esc(c.display_name)}</strong></a></td><td class="hide-sm">${esc(c.email || '')}</td><td>${c.purchases}</td><td>${c.holds}</td><td>${c.consignments}</td></tr>`).join('')}</tbody></table></div>` : '<p class="notice">No contacts yet. They are added when you place a hold, record a sale or a consignment, or here.</p>';
+  };
+  let t; $('#q').oninput = () => { clearTimeout(t); t = setTimeout(load, 200); };
+  $('#new-ct').onsubmit = async (e) => { e.preventDefault(); try { const c = await api('/contacts', { method: 'POST', body: { display_name: $('#ct-name').value } }); location.hash = `#/contacts/${c.id}`; } catch (err) { fail(err); } };
+  await load();
+}
+
+async function contactEdit(id) {
+  const c = await api(`/contacts/${id}`);
+  setTitle(c.display_name);
+  view.innerHTML = `<p class="small"><a href="#/contacts">← Contacts</a></p><h1>${esc(c.display_name)}</h1>
+<div class="layout2"><form id="ct-form"><fieldset class="private"><legend>Details</legend><div class="formgrid">
+${inputRow('display_name', 'Name', c.display_name)}${selectRow('kind', 'Type', c.kind, [['person', 'Person'], ['organization', 'Organization or gallery']])}
+${inputRow('email', 'Email', c.email || '', { type: 'email' })}${inputRow('phone', 'Phone', c.phone || '')}
+${inputRow('address', 'Address', c.address || '', { type: 'textarea', wide: true })}${inputRow('note', 'Private note', c.note || '', { type: 'textarea', wide: true })}
+</div><div class="row"><button class="primary">Save</button></div></fieldset></form>
+<aside class="sticky"><div class="card"><h3>Purchases</h3>${c.sales.length ? `<ul class="list small">${c.sales.map((s) => `<li><span class="grow"><a href="#/works/${s.artwork_id}">${esc(s.artist)}, <i>${esc(s.title)}</i></a></span><span>${esc(cents(s.price_cents, s.currency))}${s.status === 'cancelled' ? ' (cancelled)' : ''}</span></li>`).join('')}</ul>` : '<p class="small muted">None.</p>'}
+<h3>Holds</h3>${c.holds.length ? `<ul class="list small">${c.holds.map((h) => `<li><span class="grow"><a href="#/works/${h.artwork_id}">${esc(h.artist)}, <i>${esc(h.title)}</i></a></span><span class="muted">${esc(h.status === 'active' ? inHours(h.expires_at) : h.status)}</span></li>`).join('')}</ul>` : '<p class="small muted">None.</p>'}
+<h3>Consigned to the gallery</h3>${c.consignments.length ? `<ul class="list small">${c.consignments.map((k) => `<li><span class="grow"><a href="#/works/${k.artwork_id}">${esc(k.artist)}, <i>${esc(k.title)}</i></a></span><span class="muted">${esc(k.status)}</span></li>`).join('')}</ul><a class="btn small" href="#/statements/contact/${c.id}">Statement</a>` : '<p class="small muted">None.</p>'}</div></aside></div>`;
+  $('#ct-form').onsubmit = async (e) => { e.preventDefault(); try { await api(`/contacts/${id}`, { method: 'PATCH', body: Object.fromEntries(new FormData(e.target)) }); toast('Saved'); contactEdit(id); } catch (err) { fail(err); } };
+}
+
+// ---------------------------------------------------------------- money owed
+async function moneyView() {
+  setTitle('Money');
+  const m = await api('/money');
+  const t = m.totals;
+  view.innerHTML = `<h1>Money owed to artists and consignors</h1>
+<p class="sub">Worked out from recorded consignments, sales and buyer payments. A consignor is due ${STATE.settings.operations.payoutDays} days after the buyer pays in full (change this in Look &amp; settings).</p>
+<div class="stats">${[['Held for consignors', t.held], ['Owed, due later', t.payable], ['Overdue', t.overdue], ['Waiting on buyers', t.awaiting]].map(([l, n]) => `<div class="card"><div class="stat">${esc(wholeCents(n))}</div><div class="stat-label">${l}</div></div>`).join('')}</div>
+${m.payees.length ? `<div class="tablewrap"><table><thead><tr><th>Payee</th><th>Overdue</th><th>Owed</th><th class="hide-sm">Waiting on buyer</th><th class="hide-sm">Paid this year</th><th></th></tr></thead><tbody>
+${m.payees.map((p, i) => `<tr><td><strong>${esc(p.name)}</strong><div class="small muted">${p.type === 'artist' ? 'Artist' : 'Consignor'}</div></td><td>${p.overdue_cents ? `<strong style="color:var(--bad)">${esc(cents(p.overdue_cents, p.currency))}</strong>` : '—'}</td><td>${p.payable_cents ? esc(cents(p.payable_cents, p.currency)) : '—'}</td>
+<td class="hide-sm">${p.awaiting_buyer_cents ? esc(cents(p.awaiting_buyer_cents, p.currency)) : '—'}</td><td class="hide-sm">${esc(cents(p.paid_ytd_cents, p.currency))}</td>
+<td><a class="btn small" href="#/statements/${p.type}/${p.id}">Statement</a> ${p.overdue_cents + p.payable_cents ? `<button class="small" data-pay="${i}">Record payout</button>` : ''}</td></tr>
+<tr id="pay-${i}" hidden><td colspan="6"><form data-payform="${i}"><p class="small">Choose the sales this payment covers:</p>
+${p.sales.filter((s) => ['payable', 'overdue'].includes(s.payout_status)).map((s) => `<label class="check small"><input type="checkbox" name="sale" value="${s.id}" data-net="${s.split.net}" checked> ${esc(s.artist)}, <i>${esc(s.title)}</i>: ${esc(cents(s.split.net, s.currency))} ${s.payout_status === 'overdue' ? `<span class="pill bad">overdue since ${esc(s.payout_due_on)}</span>` : `<span class="muted">due ${esc(s.payout_due_on)}</span>`}</label>`).join('')}
+<div class="row" style="margin-top:8px"><label class="sr" for="po-date-${i}">Paid on</label><input id="po-date-${i}" name="paid_on" type="date" value="${todayStr()}" style="width:160px"><label class="sr" for="po-m-${i}">Method</label><input id="po-m-${i}" name="method" placeholder="Method (e.g. bank transfer)" style="width:200px"><label class="sr" for="po-r-${i}">Reference</label><input id="po-r-${i}" name="reference" placeholder="Reference" style="width:140px"><button class="primary small">Record payout</button></div></form></td></tr>`).join('')}</tbody></table></div>`
+    : '<p class="notice">Nothing owed yet. Record a consignment and a sale on a work to start tracking.</p>'}
+<div class="grid2" style="margin-top:18px">
+<div class="card"><h2>Holds ending within a day</h2>${m.holdsSoon.length ? `<ul class="list small">${m.holdsSoon.map((h) => `<li><span class="grow"><a href="#/works/${h.artwork_id}">${esc(h.artist)}, <i>${esc(h.title)}</i></a> for ${esc(h.contact_name || 'unnamed')}</span><span class="muted">${esc(inHours(h.expires_at))}</span></li>`).join('')}</ul>` : '<p class="small muted">None.</p>'}</div>
+<div class="card"><h2>Consignments ending within 30 days</h2>${m.consignmentsSoon.length ? `<ul class="list small">${m.consignmentsSoon.map((k) => `<li><span class="grow"><a href="#/works/${k.artwork_id}">${esc(k.artist)}, <i>${esc(k.title)}</i></a> from ${esc(k.contact_name || k.artist)}</span><span class="muted">${esc(k.end_date)}</span></li>`).join('')}</ul>` : '<p class="small muted">None.</p>'}</div>
+<div class="card"><h2>For your accountant</h2><p class="small">Every sale and payout as a spreadsheet: prices, tax, what was received, consignor shares and gallery shares.</p><a class="btn" href="/api/accounting.csv">Download accounting CSV</a></div></div>`;
+  $$('[data-pay]').forEach((b) => { b.onclick = () => { const r = $(`#pay-${b.dataset.pay}`); r.hidden = !r.hidden; }; });
+  $$('[data-payform]').forEach((f) => {
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const p = m.payees[+f.dataset.payform];
+      const fd = new FormData(f);
+      try { const po = await api('/payouts', { method: 'POST', body: { payee_type: p.type, payee_id: p.id, sale_ids: fd.getAll('sale'), paid_on: fd.get('paid_on'), method: fd.get('method'), reference: fd.get('reference') } }); toast(`Payout of ${cents(po.amount_cents, po.currency)} recorded`); moneyView(); }
+      catch (err) { fail(err); }
+    };
+  });
+}
+
+// ---------------------------------------------------------------- statements
+async function statementView(m, qs) {
+  const st = await api(`/statements/${m[1]}/${m[2]}?from=${encodeURIComponent(qs.get('from') || '')}&to=${encodeURIComponent(qs.get('to') || '')}`);
+  setTitle(`Statement: ${st.payee.name}`);
+  const c = (n, cur) => cents(n, cur);
+  const g = STATE.settings.gallery;
+  view.innerHTML = `<p class="small no-print"><a href="#/money">← Money</a></p>
+<form id="st-form" class="row no-print" style="margin-bottom:16px"><label for="st-from">From</label><input id="st-from" name="from" type="date" value="${st.from}" style="width:170px"><label for="st-to">To</label><input id="st-to" name="to" type="date" value="${st.to}" style="width:170px"><button class="small">Show</button><button type="button" class="small" onclick="window.print()">Print or save as PDF</button></form>
+<article class="statement"><p class="muted small">${esc(g.name)}${g.address ? ` · ${esc(g.address)}` : ''}${g.email ? ` · ${esc(g.email)}` : ''}</p>
+<h1>Statement for ${esc(st.payee.name)}</h1><p class="sub">${esc(st.from)} to ${esc(st.to)} · prepared ${esc(new Date(st.generatedAt).toLocaleDateString())}</p>
+<div class="stats">${[['Sales in period', c(st.totals.gross)], ['Your share before deductions', c(st.totals.consignorGross)], ['Deductions', c(st.totals.deductions)], ['Net to you', c(st.totals.net)], ['Paid to you in period', c(st.totals.paidOut)], ['Owed to you now', c(st.owedNow.payable + st.owedNow.overdue)]].map(([l, v]) => `<div class="card"><div class="stat" style="font-size:22px">${esc(v)}</div><div class="stat-label">${l}</div></div>`).join('')}</div>
+<h2>Sales</h2>${st.sales.length ? `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Work</th><th>Price</th><th>Your share</th><th>Deductions</th><th>Net</th><th>Status</th></tr></thead><tbody>
+${st.sales.map((s) => `<tr><td>${esc(s.sale_date)}</td><td><i>${esc(s.title)}</i>${s.stock_number ? ` <span class="muted small">${esc(s.stock_number)}</span>` : ''}${s.list_cents && s.list_cents !== s.price_cents ? `<div class="small muted">List ${esc(c(s.list_cents, s.currency))}, discount ${esc(c(s.split.discount, s.currency))} ${({ shared: 'shared pro rata', gallery: 'absorbed by the gallery', consignor: 'absorbed by you' })[s.discount_borne_by] || ''}</div>` : ''}</td>
+<td>${esc(c(s.price_cents, s.currency))}</td><td>${esc(c(s.split.consignorGross, s.currency))} (${s.split_pct}%)</td><td>${s.deductions.length ? s.deductions.map((d) => `${esc(d.description)} ${esc(c(d.amount_cents, s.currency))}`).join('<br>') : '—'}</td><td><strong>${esc(c(s.split.net, s.currency))}</strong></td>
+<td class="small">${esc(PAYOUT_LABEL[s.payout_status])}${s.payout_due_on && s.payout_status !== 'paid_out' ? `, due ${esc(s.payout_due_on)}` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No sales in this period.</p>'}
+<h2>Payments to you</h2>${st.payouts.length ? `<ul class="list small">${st.payouts.map((p) => `<li><span class="grow">${esc(p.paid_on)}${p.method ? ` · ${esc(p.method)}` : ''}${p.reference ? ` · ref ${esc(p.reference)}` : ''}</span><strong>${esc(c(p.amount_cents, p.currency))}</strong></li>`).join('')}</ul>` : '<p class="muted">None in this period.</p>'}
+<h2>Works currently on consignment</h2>${st.consigned.length ? `<ul class="list small">${st.consigned.map((k) => `<li><span class="grow"><i>${esc(k.title)}</i>${k.year ? `, ${esc(k.year)}` : ''}${k.stock_number ? ` <span class="muted">${esc(k.stock_number)}</span>` : ''}</span><span>${k.price != null ? esc(cents(Math.round(k.price * 100), k.currency)) : ''}</span><span class="muted">${k.split_pct}%${k.end_date ? ` · until ${esc(k.end_date)}` : ''}</span></li>`).join('')}</ul>` : '<p class="muted">None.</p>'}
+<p class="small muted" style="margin-top:24px">Questions about this statement: ${esc(g.email || g.name)}.</p></article>`;
+  $('#st-form').onsubmit = (e) => { e.preventDefault(); const fd = new FormData(e.target); location.hash = `#/statements/${m[1]}/${m[2]}?from=${fd.get('from')}&to=${fd.get('to')}`; };
 }
 
 route();

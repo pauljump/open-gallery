@@ -1,4 +1,18 @@
-# Verification results, release 0.1.0
+# Verification results
+
+## Release 0.2.0: operations layer
+
+Measured 2026-10-16, same machine and synthetic data. `npm test`: 34 tests, 34 passing.
+
+- **Money math** (`test/ledger.test.mjs`): consignor share for discounts shared pro rata, absorbed by the gallery, or absorbed by the consignor, in integer cents; deductions; gallery-owned sales owe nothing.
+- **Rules**: one active consignment per work; discount over the agreed limit needs approval; holds queue, expire and drive availability; a sale converts the buyer's hold and releases others; payouts only cover that payee's fully paid sales and the exact amount; paid-out sales cannot be repriced or cancelled.
+- **Privacy**: buyer and consignor names, emails, notes, invoice numbers, sale prices and deductions scanned across every built public file: none found. Sold works show "sold" with no price.
+- **Restore and upgrade**: every operations table restores row for row and statements match. A 0.1.0 workspace upgrades in place and records sales, and a 0.1.0 export restores into 0.2.0 (this test found and fixed a bug that marked old exports as mismatched).
+- **Browser run**: consignment, hold, discounted sale with deposit, deduction, final payment, payout from Money, and the artist statement, with no page errors; Money, Contacts, statement and work pages at 390 px with no horizontal scroll; labels and ids checked on the new pages.
+
+Not verified: any real gallery's consignment terms or books; tax treatment; multi-currency totals (amounts in different currencies are added without conversion).
+
+## Release 0.1.0
 
 Measured 2026-10-16 on an Apple M4 Mac mini, macOS, Node.js 22.22.2, using synthetic data only (a fictional 60-work gallery with generated CC0 images, and a 1,500-work fixture). **No real gallery data and no real gallery owner were involved.**
 

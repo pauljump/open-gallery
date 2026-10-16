@@ -13,6 +13,7 @@ Every public promise Open Gallery makes, and what supports it. If a claim has no
 | Complete export and restore into a fresh install | Verified on synthetic data | `backup.test.mjs`, browser restore journey; bundles over 4 GB not supported |
 | Customization survives updates | Verified for one simulated update | VERIFICATION.md "Upgrade and rollback"; settings and CSS live in the data folder |
 | Keeps working if the project disappears | By design | Local app, no service of ours involved, documented formats; not something a test can prove |
+| Consignment accounting: owner of record, holds, sales, payouts, artist statements | Verified on synthetic data | `test/ledger.test.mjs` (split math for three discount rules in integer cents, payout rules, statements, restore, upgrade from 0.1); browser run from consignment to statement. Not tax or legal advice; not tested against a real gallery's books |
 | Existing Artsy and Artnet links stay available | Verified | Links imported and shown on public pages; nothing written to those services |
 | Artsy bulk-import file | Built from public notes; **not tested with a real Artsy account** | RESEARCH-NOTES.md; the current CMS template was not visible without a partner login |
 | Artsy or Artnet integration or sync | **Not claimed** | No authorized access exists. Connector state shows "not connected" or "file exchange" |

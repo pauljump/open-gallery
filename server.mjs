@@ -11,6 +11,7 @@ import { exportBundle, restoreBundle, verifyWorkspace, dataSize } from './lib/ba
 import { artsyCandidates, buildArtsyPackage, artsyReconciliation, connectors } from './lib/artsy.mjs';
 import { FIELDS, AVAILABILITY } from './lib/fields.mjs';
 import { seedDemo } from './lib/demo-seed.mjs';
+import * as ledger from './lib/ledger.mjs';
 
 const ROOT = new URL('.', import.meta.url).pathname;
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -83,6 +84,36 @@ export function createApp({ dataDir, host = '127.0.0.1' }) {
     if ((r = m(/^\/artworks\/(aw_\w+)\/public-preview$/)) && method === 'GET') {
       const aw = store.getArtwork(db, r[1]);
       return send(res, 200, publicArtwork(aw, getSettings(db), store.listCustomFields(db).filter((f) => f.visibility === 'public')));
+    }
+    if ((r = m(/^\/artworks\/(aw_\w+)\/operations$/)) && method === 'GET') {
+      return send(res, 200, { owner: ledger.ownerOfRecord(db, r[1]), holds: ledger.listHolds(db, r[1]), sales: ledger.salesForArtwork(db, r[1]),
+        consignments: db.prepare('SELECT k.*, c.display_name AS contact_name, a.name AS artist_name FROM consignments k LEFT JOIN contacts c ON c.id=k.contact_id LEFT JOIN artists a ON a.id=k.artist_id WHERE k.artwork_id=? ORDER BY k.created_at DESC').all(r[1]) });
+    }
+    if ((r = m(/^\/artworks\/(aw_\w+)\/consignments$/)) && method === 'POST') return send(res, 201, ledger.saveConsignment(db, null, { ...(await json(req)), artwork_id: r[1] }));
+    if ((r = m(/^\/consignments\/(cn_\w+)$/)) && method === 'PATCH') return send(res, 200, ledger.saveConsignment(db, r[1], await json(req)));
+    if ((r = m(/^\/artworks\/(aw_\w+)\/gallery-owned$/)) && method === 'PUT') { ledger.setGalleryOwned(db, r[1], !!(await json(req)).owned); return send(res, 200, ledger.ownerOfRecord(db, r[1])); }
+    if ((r = m(/^\/artworks\/(aw_\w+)\/holds$/)) && method === 'POST') return send(res, 201, ledger.placeHold(db, r[1], await json(req)));
+    if ((r = m(/^\/holds\/(hd_\w+)$/)) && method === 'PATCH') { const b = await json(req); return send(res, 200, ledger.closeHold(db, r[1], b.status === 'converted' ? 'converted' : 'released')); }
+    if ((r = m(/^\/artworks\/(aw_\w+)\/sales$/)) && method === 'POST') return send(res, 201, ledger.recordSale(db, r[1], await json(req)));
+    if ((r = m(/^\/sales\/(sl_\w+)$/))) {
+      if (method === 'GET') { const sd = ledger.saleDetail(db, r[1]); return sd ? send(res, 200, sd) : send(res, 404, { error: 'Sale not found' }); }
+      if (method === 'PATCH') return send(res, 200, ledger.updateSale(db, r[1], await json(req)));
+    }
+    if ((r = m(/^\/sales\/(sl_\w+)\/cancel$/)) && method === 'POST') return send(res, 200, ledger.cancelSale(db, r[1], await json(req)));
+    if ((r = m(/^\/sales\/(sl_\w+)\/payments$/)) && method === 'POST') return send(res, 201, ledger.addPayment(db, r[1], await json(req)));
+    if ((r = m(/^\/sales\/(sl_\w+)\/deductions$/)) && method === 'POST') return send(res, 201, ledger.addDeduction(db, r[1], await json(req)));
+    if (method === 'GET' && p === '/contacts') return send(res, 200, ledger.listContacts(db, q));
+    if (method === 'POST' && p === '/contacts') return send(res, 201, ledger.saveContact(db, null, await json(req)));
+    if ((r = m(/^\/contacts\/(ct_\w+)$/))) {
+      if (method === 'GET') { const c = ledger.getContact(db, r[1]); return c ? send(res, 200, c) : send(res, 404, { error: 'Contact not found' }); }
+      if (method === 'PATCH') return send(res, 200, ledger.saveContact(db, r[1], await json(req)));
+    }
+    if (method === 'GET' && p === '/money') return send(res, 200, { ...ledger.owedSummary(db), holdsSoon: ledger.holdsExpiringSoon(db, 24), consignmentsSoon: ledger.consignmentsEndingSoon(db, 30) });
+    if (method === 'POST' && p === '/payouts') return send(res, 201, ledger.recordPayout(db, await json(req)));
+    if ((r = m(/^\/statements\/(artist|contact)\/((?:ar|ct)_\w+)$/)) && method === 'GET') return send(res, 200, ledger.statement(db, r[1], r[2], q));
+    if (method === 'GET' && p === '/accounting.csv') {
+      res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="open-gallery-accounting-${new Date().toISOString().slice(0, 10)}.csv"`, 'cache-control': 'no-store' });
+      return res.end(ledger.accountingCSV(db, q));
     }
     if (method === 'GET' && p === '/artists') return send(res, 200, store.listArtists(db));
     if ((r = m(/^\/artists\/(ar_\w+)$/)) && method === 'PATCH') return send(res, 200, store.updateArtist(db, r[1], await json(req)));

@@ -105,3 +105,5 @@ tr.clickable{cursor:pointer}tr.clickable:hover td{background:var(--soft)}
   th,td{padding:8px 6px}
   h1{font-size:25px}
 }
+
+@media print{.top,nav#nav,.no-print,#toast,.skip{display:none!important}.shell{display:block}main{padding:0}body{background:#fff;color:#000}.card{border-color:#ccc}}

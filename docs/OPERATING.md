@@ -14,6 +14,18 @@ Start: `open-gallery start --open` (or `node bin/open-gallery.mjs start --open` 
 - **Publish**: build the public catalog folder, preview it, and prepare Artsy upload files.
 - **Backup**: download a full export, check the workspace, or restore into an empty workspace.
 
+## Consignments, holds, sales and payouts
+
+On a work's page, **Ownership and sales** records who owns the work:
+
+- **Record consignment**: from the artist or from a collector or another gallery, with the consignor's share, how much discount you may give without asking, who absorbs a discount (shared, the gallery, or the consignor), dates and insurance. An artist's usual share can be set on the Artists page.
+- **Holds**: place a hold for a client with an expiry (48 hours by default). Several holds queue in order. The work shows as reserved while any hold is active and returns to available when they lapse.
+- **Record a sale**: buyer, price, tax, shipping, deposit and invoice number. A discount beyond the consignment's limit asks for the consignor's approval. Record later payments and deductions (framing, shipping charged back) on the same card. Cancelling a sale makes the work available again.
+
+**Money** shows, per artist or consignor, what is waiting on the buyer, what is owed and when it is due (30 days after the buyer pays in full, adjustable in settings), and what is overdue. Record a payout against specific sales. **Statement** prints a period statement for an artist or consignor, ready to save as PDF and send. **Download accounting CSV** gives your bookkeeper every sale and payout.
+
+None of this ever appears on the public site.
+
 ## Re-importing a newer spreadsheet
 
 Your spreadsheet can stay your main record while you try Open Gallery. Each re-import:

@@ -6,8 +6,9 @@ A complete, private backup of one workspace as an ordinary ZIP file. It opens wi
 manifest.json              format, version, app and schema version, workspace id, row counts,
                            and { path, sha256, bytes } for every other file
 README.txt                 plain-language description and restore instructions
-records/workspace.json     every table: meta, settings, artists, artworks, channel_links, media,
-                           custom_fields, exhibitions, exhibition_items, imports, connectors, audit
+records/workspace.json     every table: meta, settings, artists, contacts, artworks, channel_links, media,
+                           custom_fields, exhibitions, exhibition_items, consignments, holds, sales,
+                           payments, deductions, payouts, imports, connectors, audit
 spreadsheets/artworks.csv  one row per work including private fields, custom fields and extra columns
 spreadsheets/artists.csv
 spreadsheets/exhibitions.csv
@@ -17,6 +18,8 @@ custom/…                         custom CSS and other customization files
 ```
 
 Artwork records reference images by `media.sha256`, artists by `artist_id`, and exhibitions through `exhibition_items` with their order. `artworks.private`, `custom`, `extra` and `origin` are JSON objects; `dims` is a JSON list.
+
+Amounts in the operations tables (sales, payments, deductions, payouts, insured values) are integer cents. Bundles from 0.1 restore into 0.2; tables they lack start empty.
 
 ## Restore rules
 
