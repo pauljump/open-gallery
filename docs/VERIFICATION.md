@@ -20,9 +20,9 @@ Measured 2026-10-16 on an Apple M4 Mac mini, macOS, Node.js 22.22.2, using synth
 
 Upload 9 ms, preview 38 ms, apply 560 ms, repeat preview 605 ms, search 2 to 3 ms, list 9 ms. The brief's target of a useful 100-work preview within 15 minutes is met by the software; the human time to prepare a real gallery's files has not been measured.
 
-## Browser checks (headless Chrome 141 via Playwright)
+## Browser checks (headless Google Chrome 155 driven by Playwright)
 
-- **Fresh install journey, no mouse-free shortcuts**: empty workspace → import XLSX (1 in-file duplicate decided) → 59 works → 75 images uploaded and 69 matched in 1.1 s → settings changed → all works published → new exhibition with 4 works → public catalog built with 69 web-sized JPEG copies (4.0 MB versus 16 MB of originals) → export downloaded → restored through the browser into a second empty instance: "Restored 59 works and 75 images. Every checksum matched." No page errors.
+- **Fresh install journey, scripted through the real UI**: empty workspace → import XLSX (1 in-file duplicate decided) → 59 works → 75 images uploaded and 69 matched in 1.1 s → settings changed → all works published → new exhibition with 4 works → public catalog built with 69 web-sized JPEG copies (4.0 MB versus 16 MB of originals) → export downloaded → restored through the browser into a second empty instance: "Restored 59 works and 75 images. Every checksum matched." No page errors.
 - **Re-import journey**: week-later sheet, Apply disabled until the duplicate was decided, applied in 0.6 s.
 - **Layouts**: 8 app views and 4 public pages at 1280 px and 390 px wide, no horizontal scrolling.
 - **Keyboard**: `/` focuses search; Tab reaches a work and Enter opens it; focus moves to the page heading on navigation; visible focus outlines.
