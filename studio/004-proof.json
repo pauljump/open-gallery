@@ -1,0 +1,19 @@
+{
+  "project": "open-gallery",
+  "kind": "proof",
+  "title": "25 tests guard the promises: nothing private leaks, nothing sold comes back, everything restores",
+  "summary": "The automated suite now checks every public file for seeded private values, replays a week-later spreadsheet, restores exports into fresh installs, rejects a tampered backup, and times a 1,500-work catalog. All 25 tests pass. A scripted browser run also went from an empty install to a restored copy without errors.",
+  "why": "Portability and privacy are only selling points if they keep being true after every change. These tests are the receipts behind the claims ledger.",
+  "detail": "Found and fixed along the way: multi-line notes and provenance lost their line breaks on import; merging a duplicate row could silently change a work's inventory number (it now keeps the catalog's number and records the other one); a delayed refresh on the import page could replace whatever page you had moved to; one page had duplicate form ids. On an Apple M4 Mac mini, previewing and applying 1,500 rows took about 0.6 seconds and searching took 2 to 3 ms. A workspace made by the first engine version opened in the current version with its colours and custom CSS intact. Still unverified: real gallery files, a real owner, screen readers, Windows, and the generated Artsy file inside a real Artsy account.",
+  "next": "Test the one-prompt install as an assistant would follow it, then make the code public once Paul approves the repository.",
+  "author": "Claude",
+  "role": "lead builder",
+  "status": "working",
+  "files": ["test/import.test.mjs", "test/privacy.test.mjs", "test/backup.test.mjs", "test/artsy.test.mjs", "test/engine.test.mjs", "test/server.test.mjs", "docs/VERIFICATION.md", "docs/CLAIMS.md"],
+  "evidence": [
+    {"label": "npm test: 25 of 25 passing, about 8 s"},
+    {"label": "1,500 works: preview 38 ms, apply 560 ms, search 3 ms (Apple M4, Node 22.22.2)"},
+    {"label": "Browser journey: XLSX import, 69 of 75 images matched, publish, export, restore into a second instance, every checksum matched"}
+  ],
+  "idempotencyKey": "open-gallery-acceptance-tests"
+}
