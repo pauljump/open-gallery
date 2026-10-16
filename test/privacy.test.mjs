@@ -79,7 +79,6 @@ test('published site and catalog feed contain no private sentinels, locations, e
     assert.ok(!('Vault code' in feedById[customId].custom));
     const pricedPage = readFileSync(join(out, 'works', feedById[pricedId].slug, 'index.html'), 'utf8');
     assert.ok(pricedPage.includes(feedById[pricedId].price.display));
-    assert.ok(pricedPage.includes('PUBLIC-FRAMER-VALUE') || customId !== pricedId);
     const customPage = readFileSync(join(out, 'works', feedById[customId].slug, 'index.html'), 'utf8');
     assert.ok(customPage.includes('PUBLIC-FRAMER-VALUE'));
     assert.ok(!customPage.includes('PRIVATE-VAULT-4471'));
