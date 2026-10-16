@@ -64,7 +64,14 @@ export function createApp({ dataDir, host = '127.0.0.1' }) {
     const method = req.method;
     let r;
     if (method === 'GET' && p === '/state') return send(res, 200, state());
-    if (method === 'GET' && p === '/artworks') return send(res, 200, store.listArtworks(db, { ...q, limit: Math.min(Number(q.limit) || 500, 5000), offset: Number(q.offset) || 0 }));
+    if (method === 'GET' && p === '/artworks') {
+      const out = store.listArtworks(db, { ...q, limit: Math.min(Number(q.limit) || 200, 5000), offset: Number(q.offset) || 0 });
+      // Prefer small thumbnails made by the browser; fall back to the original.
+      for (const r of out.rows) if (r.thumb) { const sha = r.thumb.slice(7, 71); if (existsSync(join(dataDir, 'media', 'thumb', `${sha}.jpg`))) r.thumb = `/media/thumb/${sha}.jpg`; else r.needsThumb = r.thumb_media_id || true; }
+      return send(res, 200, out);
+    }
+    if (method === 'POST' && p === '/artworks/reprice') { const b = await json(req); return send(res, 200, store.bulkReprice(db, b.ids || [], b)); }
+    if (method === 'POST' && p === '/artworks/set-prices') return send(res, 200, store.setPrices(db, (await json(req)).prices || []));
     if (method === 'POST' && p === '/artworks') return send(res, 201, store.createArtwork(db, await json(req)));
     if (method === 'POST' && p === '/artworks/bulk') {
       const { ids = [], patch = {} } = await json(req);
@@ -122,6 +129,15 @@ export function createApp({ dataDir, host = '127.0.0.1' }) {
     if ((r = m(/^\/media\/(md_\w+)$/))) {
       if (method === 'PATCH') return send(res, 200, store.updateMedia(db, r[1], await json(req)));
       if (method === 'DELETE') { store.removeMedia(db, r[1]); return send(res, 200, { deleted: r[1] }); }
+    }
+    if ((r = m(/^\/media\/(md_\w+)\/thumb$/)) && method === 'PUT') {
+      const md = db.prepare('SELECT sha256 FROM media WHERE id=?').get(r[1]);
+      if (!md) throw store.httpError(404, 'Image not found');
+      const buf = await body(req, 2 * 1024 * 1024);
+      if (buf[0] !== 0xff || buf[1] !== 0xd8) throw store.httpError(415, 'Thumbnail must be a JPEG');
+      mkdirSync(join(dataDir, 'media', 'thumb'), { recursive: true });
+      writeFileSync(join(dataDir, 'media', 'thumb', `${md.sha256}.jpg`), buf);
+      return send(res, 200, { ok: true });
     }
     if ((r = m(/^\/media\/(md_\w+)\/web$/)) && method === 'PUT') {
       // A browser-made web copy (resized, re-encoded JPEG, which drops camera metadata).
@@ -213,7 +229,7 @@ export function createApp({ dataDir, host = '127.0.0.1' }) {
       }
       if (url.pathname.startsWith('/media/')) {
         const rel = decodeURIComponent(url.pathname.slice(7));
-        if (!/^(web\/)?[0-9a-f]{64}\.\w+$/.test(rel)) return send(res, 404, { error: 'Not found' });
+        if (!/^((web|thumb)\/)?[0-9a-f]{64}\.\w+$/.test(rel)) return send(res, 404, { error: 'Not found' });
         return sendFile(res, join(dataDir, 'media', rel), 'private, max-age=31536000, immutable');
       }
       if (url.pathname.startsWith('/site/')) {

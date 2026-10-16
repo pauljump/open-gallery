@@ -1,5 +1,13 @@
 # Verification results
 
+## Release 0.3.0: faster daily tasks
+
+`npm test`: 36 tests, 36 passing. New: price and size filters (a 120 cm work is correctly excluded from a 40 in wall), price sorting, and bulk repricing that previews without writing, skips sold and unpriced works, rounds as asked, undoes exactly, and counts as a staff edit for later imports.
+
+Browser run on the sample gallery: repricing 20 available works by 10% took 24 interactions including the 20 checkboxes, down from about 80 page-level steps in 0.2; undo restored every price. "Available, under $10,000, at most 40 in wide" is three filter fields and returned 3 works. Thumbnails: 59 small copies (about 0.8 MB in total) were made in the browser the first time the list opened, and the list now loads those instead of originals. Adding 3 selected works to a new exhibition took one menu choice. No page errors; no horizontal scroll at 390 px.
+
+Not changed yet from the audit: whole-app pauses during very large imports, and in-memory export for large archives.
+
 ## Release 0.2.0: operations layer
 
 Measured 2026-10-16, same machine and synthetic data. `npm test`: 34 tests, 34 passing.

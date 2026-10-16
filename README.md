@@ -4,11 +4,12 @@ Free, open source inventory and catalog software for galleries. It runs on your 
 
 **Keep your marketplaces. Own your catalog.**
 
-What it does today (version 0.2):
+What it does today (version 0.3):
 
 - **Import a copy of your inventory** from CSV or Excel. You see every column mapping and every change before anything is saved. Columns it does not understand are kept, not dropped. The original file is stored unchanged.
 - **Re-import safely.** A later spreadsheet updates prices and status, but never overwrites an edit you made in the app without asking, never marks a sold work available again on its own, and never deletes works that are missing from the file.
-- **Find and edit works**: artists, dimensions (work and framed, inches or centimetres), prices, availability, location, private notes, your own custom fields, and images matched by file name.
+- **Find works fast**: filter by artist, availability, price range and the width of the wall (any unit), sort by price, year or recent changes. Reprice a selection by a percentage, an amount or a set price with a preview and one-click undo, and add a selection to an exhibition.
+- **Edit works**: artists, dimensions (work and framed, inches or centimetres), prices, availability, location, private notes, your own custom fields, and images matched by file name.
 - **Track who owns each work and what you owe.** Record consignments from artists or collectors (split, discount limit, who absorbs a discount, dates, insurance), holds with expiry and a queue, and sales with deposits, payments, tax and deductions. Open Gallery works out what each artist or consignor is owed and when it is due, shows what is overdue, records payouts, and prints a clear statement for each artist. An accounting CSV goes to your bookkeeper. All of it is private.
 - **Build exhibitions** with your order, text and layout, plus a printable catalog you can save as a PDF.
 - **Publish a public catalog** made only from works and fields you approve. Location, costs, consignors, buyers, notes and unmapped columns are never written to public files. Existing Artsy, Artnet and website listing links stay on each work.

@@ -5,7 +5,7 @@
 3. **Screen reader pass** (VoiceOver, NVDA) and a Windows run.
 4. **Remember "skip" decisions** for duplicate rows so the same sheet does not ask again.
 5. **One-click upload of the public catalog** to a host the gallery chooses, with the cost shown first.
-6. **Fast daily tasks from the audit**: bulk price edit, price and size filters, sortable columns, thumbnails, drag reorder in exhibitions.
+6. **Remaining audit speedups**: drag reorder in exhibitions, streaming export for large archives, imports that do not pause the app.
 7. **Edition parents and physical units**: today an edition is a text field on one record.
 8. **Location history, condition reports and documents** attached to works.
 8. **Optional local AI** (off by default, owner-configured, e.g. Ollama): describe images, draft captions, suggest column mappings. Must never fall back to a paid service and must be benchmarked for correctness first.

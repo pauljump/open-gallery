@@ -161,47 +161,139 @@ function describe(a) {
 // ---------------------------------------------------------------- works
 async function works(_m, qs) {
   setTitle('Works');
-  const artistsList = await api('/artists');
-  const f = { q: qs.get('q') || '', artist: qs.get('artist') || '', availability: qs.get('availability') || '', visibility: qs.get('visibility') || '' };
+  const [artistsList, exList] = await Promise.all([api('/artists'), api('/exhibitions')]);
+  const keys = ['q', 'artist', 'availability', 'visibility', 'minPrice', 'maxPrice', 'maxWidth', 'sort'];
+  const f = Object.fromEntries(keys.map((k) => [k, qs.get(k) || '']));
+  const unit = STATE.settings.catalog.units;
   view.innerHTML = `<div class="spread"><div><h1>Works</h1><p class="sub" style="margin:0">Press <span class="kbd">/</span> to search.</p></div><a class="btn primary" href="#/works/new">Add a work</a></div>
 <form class="filters" id="filters" role="search">
 <div class="q"><label for="q">Search</label><input id="q" name="q" value="${esc(f.q)}" placeholder="Title, artist, inventory number, location…" autocomplete="off"></div>
 <div><label for="f-artist">Artist</label><select id="f-artist" name="artist"><option value="">All artists</option>${artistsList.map((a) => `<option value="${a.id}"${a.id === f.artist ? ' selected' : ''}>${esc(a.name)}</option>`).join('')}</select></div>
 <div><label for="f-av">Availability</label><select id="f-av" name="availability"><option value="">Any</option>${STATE.availability.map((a) => `<option value="${a.key}"${a.key === f.availability ? ' selected' : ''}>${a.label}</option>`).join('')}</select></div>
 <div><label for="f-vis">Show</label><select id="f-vis" name="visibility">${[['', 'All works'], ['public', 'Published'], ['private', 'Private only'], ['noimage', 'Without images'], ['missing', 'Not in last import']].map(([k, l]) => `<option value="${k}"${k === f.visibility ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+<div><label for="f-min">Price from</label><input id="f-min" name="minPrice" type="number" min="0" step="any" value="${esc(f.minPrice)}"></div>
+<div><label for="f-max">Price up to</label><input id="f-max" name="maxPrice" type="number" min="0" step="any" value="${esc(f.maxPrice)}"></div>
+<div><label for="f-w">Width up to (${unit})</label><input id="f-w" name="maxWidth" type="number" min="0" step="any" value="${esc(f.maxWidth ? (unit === 'cm' ? Math.round(f.maxWidth * 2.54) : f.maxWidth) : '')}" data-unit="${unit}"></div>
+<div><label for="f-sort">Sort by</label><select id="f-sort" name="sort">${[['artist', 'Artist'], ['price', 'Price, low to high'], ['price_desc', 'Price, high to low'], ['year', 'Year, newest'], ['updated', 'Recently changed'], ['stock', 'Inventory number'], ['title', 'Title']].map(([k, l]) => `<option value="${k}"${k === (f.sort || 'artist') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
 </form>
 <div class="row" id="bulk" style="margin-bottom:10px" hidden><span id="bulk-n"></span>
-<button class="small" data-bulk="publish">Publish</button><button class="small" data-bulk="unpublish">Make private</button>
-<label class="sr" for="bulk-av">Set availability</label><select id="bulk-av" style="width:auto;min-height:28px;padding:2px 6px"><option value="">Set availability…</option>${STATE.availability.map((a) => `<option value="${a.key}">${a.label}</option>`).join('')}</select></div>
+<button class="small" data-bulk="publish">Publish</button><button class="small" data-bulk="unpublish">Make private</button><button class="small" id="reprice-open">Change prices…</button>
+<label class="sr" for="bulk-av">Set availability</label><select id="bulk-av" style="width:auto;min-height:28px;padding:2px 6px"><option value="">Set availability…</option>${STATE.availability.map((a) => `<option value="${a.key}">${a.label}</option>`).join('')}</select>
+<label class="sr" for="bulk-ex">Add to exhibition</label><select id="bulk-ex" style="width:auto;min-height:28px;padding:2px 6px"><option value="">Add to exhibition…</option>${exList.map((e) => `<option value="${e.id}">${esc(e.title)}</option>`).join('')}<option value="__new">New exhibition…</option></select></div>
+<div id="reprice" class="card" hidden style="margin-bottom:12px"><form id="reprice-form" class="row">
+<label class="sr" for="rp-mode">How</label><select id="rp-mode" name="mode" style="width:auto"><option value="percent">Raise or lower by %</option><option value="amount">Add or subtract an amount</option><option value="set">Set every price to</option></select>
+<label class="sr" for="rp-val">Value</label><input id="rp-val" name="value" type="number" step="any" placeholder="e.g. 15 or -10" style="width:140px" required>
+<label for="rp-round" class="small" style="margin:0">Round to</label><select id="rp-round" name="round" style="width:auto"><option value="1">1</option><option value="10">10</option><option value="50">50</option><option value="100" selected>100</option><option value="500">500</option><option value="1000">1,000</option></select>
+<button class="small">Preview</button></form><div id="reprice-out" aria-live="polite"></div></div>
 <div id="results"></div>`;
-  const load = async () => {
-    const params = new URLSearchParams(Object.entries(f).filter(([, v]) => v));
-    history.replaceState(null, '', `#/works${params.toString() ? '?' + params : ''}`);
-    const { rows, total } = await api(`/artworks?${params}`);
-    $('#results').innerHTML = rows.length ? `<p class="small muted" aria-live="polite">${total} work${total === 1 ? '' : 's'}${total > rows.length ? `, showing ${rows.length}` : ''}</p>
-<div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="all" aria-label="Select all"></th><th></th><th>Work</th><th class="hide-sm">Inventory</th><th class="hide-sm">Dimensions</th><th class="hide-sm">Price</th><th>Status</th><th class="hide-sm">Location</th></tr></thead><tbody>
-${rows.map((r) => `<tr class="clickable" data-id="${r.id}"><td><input type="checkbox" class="sel" value="${r.id}" aria-label="Select ${esc(r.title)}"></td>
-<td>${r.thumb ? `<img class="thumb" src="${r.thumb}" alt="" loading="lazy">` : '<div class="thumb"></div>'}</td>
+  let offset = 0;
+  const PAGE = 200;
+  const params = () => {
+    const p = new URLSearchParams();
+    for (const k of keys) {
+      let v = f[k]; if (!v) continue;
+      if (k === 'maxWidth' && unit === 'cm') v = String(Number(v) / 2.54); // filter runs in inches
+      p.set(k, v);
+    }
+    return p;
+  };
+  const rowHtml = (r) => `<tr class="clickable" data-id="${r.id}"><td><input type="checkbox" class="sel" value="${r.id}" aria-label="Select ${esc(r.title)}"></td>
+<td>${r.thumb ? `<img class="thumb" src="${r.thumb}" alt="" loading="lazy" ${r.needsThumb ? `data-mkthumb="${r.needsThumb}"` : ''}>` : '<div class="thumb"></div>'}</td>
 <td><a href="#/works/${r.id}"><strong>${esc(r.artist)}</strong><br><i>${esc(r.title || 'Untitled')}</i>${r.year ? `, ${esc(r.year)}` : ''}</a><div class="show-sm small">${r.price != null ? esc(money(r.price, r.currency)) : ''}</div></td>
 <td class="hide-sm">${esc(r.stock_number || '')}</td><td class="hide-sm small">${esc(dimsText(r.dims))}</td>
 <td class="hide-sm">${r.price != null ? esc(money(r.price, r.currency)) : '<span class="muted">—</span>'}${r.price_visibility === 'show' ? '' : `<div class="small muted">${r.price_visibility === 'hidden' ? 'hidden' : 'on request'}</div>`}</td>
 <td><span class="pill ${r.availability}">${esc(availLabel(r.availability))}</span>${r.public ? ' <span class="pill public">Published</span>' : ''}${r.missing_from_last_import ? ' <span class="pill warn" title="Not in your last spreadsheet">Not in last import</span>' : ''}</td>
-<td class="hide-sm small">${esc(r.location)}</td></tr>`).join('')}</tbody></table></div>` : `<div class="notice">No works match. ${STATE.empty ? '<a href="#/import">Import your inventory</a> to get started.' : ''}</div>`;
-    const bulk = $('#bulk');
-    const update = () => { const n = $$('.sel:checked').length; bulk.hidden = !n; $('#bulk-n').textContent = `${n} selected`; };
+<td class="hide-sm small">${esc(r.location)}</td></tr>`;
+  const update = () => { const n = $$('.sel:checked').length; $('#bulk').hidden = !n; $('#bulk-n').textContent = `${n} selected`; if (!n) $('#reprice').hidden = true; };
+  const wire = () => {
     $$('.sel').forEach((c) => { c.onclick = (e) => e.stopPropagation(); c.onchange = update; });
-    const all = $('#all'); if (all) all.onchange = () => { $$('.sel').forEach((c) => { c.checked = all.checked; }); update(); };
     $$('tr.clickable').forEach((tr) => { tr.onclick = (e) => { if (e.target.closest('a,input')) return; location.hash = `#/works/${tr.dataset.id}`; }; });
+    makeThumbs();
+  };
+  const load = async (append = false) => {
+    if (!append) offset = 0;
+    const p = params();
+    history.replaceState(null, '', `#/works${p.toString() ? '?' + p : ''}`);
+    p.set('limit', PAGE); p.set('offset', offset);
+    const { rows, total } = await api(`/artworks?${p}`);
+    if (!append) {
+      $('#results').innerHTML = rows.length ? `<p class="small muted" aria-live="polite" id="count"></p>
+<div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="all" aria-label="Select all shown"></th><th></th><th>Work</th><th class="hide-sm">Inventory</th><th class="hide-sm">Dimensions</th><th class="hide-sm">Price</th><th>Status</th><th class="hide-sm">Location</th></tr></thead><tbody id="rows"></tbody></table></div>
+<p><button id="more" hidden>Show more</button></p>` : `<div class="notice">No works match. ${STATE.empty ? '<a href="#/import">Import your inventory</a> to get started.' : ''}</div>`;
+      update();
+      if (!rows.length) return;
+      $('#all').onchange = () => { $$('.sel').forEach((c) => { c.checked = $('#all').checked; }); update(); };
+      $('#more').onclick = () => load(true).catch(fail);
+    }
+    $('#rows').insertAdjacentHTML('beforeend', rows.map(rowHtml).join(''));
+    offset += rows.length;
+    $('#count').textContent = `${total} work${total === 1 ? '' : 's'}${total > offset ? `, showing ${offset}` : ''}`;
+    $('#more').hidden = offset >= total;
+    wire();
   };
   let timer;
-  $('#filters').addEventListener('input', (e) => { f[e.target.name] = e.target.value; clearTimeout(timer); timer = setTimeout(() => load().catch(fail), e.target.name === 'q' ? 200 : 0); });
+  $('#filters').addEventListener('input', (e) => { f[e.target.name] = e.target.value; clearTimeout(timer); timer = setTimeout(() => load().catch(fail), ['q', 'minPrice', 'maxPrice', 'maxWidth'].includes(e.target.name) ? 250 : 0); });
   $('#filters').addEventListener('submit', (e) => e.preventDefault());
-  const bulkDo = async (patch) => { const ids = $$('.sel:checked').map((c) => c.value); await api('/artworks/bulk', { method: 'POST', body: { ids, patch } }); toast(`Updated ${ids.length} work${ids.length === 1 ? '' : 's'}`); load(); };
+  const selected = () => $$('.sel:checked').map((c) => c.value);
+  const bulkDo = async (patch) => { const ids = selected(); await api('/artworks/bulk', { method: 'POST', body: { ids, patch } }); toast(`Updated ${ids.length} work${ids.length === 1 ? '' : 's'}`); load(); };
   $$('[data-bulk]').forEach((b) => { b.onclick = () => bulkDo({ public: b.dataset.bulk === 'publish' }).catch(fail); });
-  $('#bulk-av').onchange = (e) => { if (e.target.value) bulkDo({ availability: e.target.value }).catch(fail); };
+  $('#bulk-av').onchange = (e) => { if (!e.target.value) return; const v = e.target.value; e.target.value = ''; if (v === 'sold') return toast('Use "Record a sale" on the work page so payment and payouts are tracked', true); bulkDo({ availability: v }).catch(fail); };
+  $('#bulk-ex').onchange = async (e) => {
+    const v = e.target.value; e.target.value = ''; if (!v) return;
+    const ids = selected();
+    try {
+      if (v === '__new') { const ex = await api('/exhibitions', { method: 'POST', body: { title: 'Untitled exhibition', items: ids } }); toast('Exhibition created. Give it a title.'); location.hash = `#/exhibitions/${ex.id}`; return; }
+      const ex = await api(`/exhibitions/${v}`);
+      const have = ex.items.map((i) => i.artwork_id);
+      const add = ids.filter((id) => !have.includes(id));
+      await api(`/exhibitions/${v}`, { method: 'PATCH', body: { items: [...have, ...add] } });
+      toast(`Added ${add.length} work${add.length === 1 ? '' : 's'} to ${ex.title}`);
+    } catch (err) { fail(err); }
+  };
+  $('#reprice-open').onclick = () => { $('#reprice').hidden = !$('#reprice').hidden; if (!$('#reprice').hidden) $('#rp-val').focus(); };
+  $('#reprice-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const body = { ...Object.fromEntries(new FormData(e.target)), ids: selected(), dryRun: true };
+    try {
+      const pv = await api('/artworks/reprice', { method: 'POST', body });
+      const out = $('#reprice-out');
+      out.innerHTML = `${pv.changes.length ? `<ul class="list small" style="max-height:260px;overflow:auto">${pv.changes.map((c) => `<li><span class="grow">${esc(c.artist)}, <i>${esc(c.title)}</i></span><span class="change"><del>${esc(money(c.from, c.currency))}</del> → <ins>${esc(money(c.to, c.currency))}</ins></span></li>`).join('')}</ul>` : '<p class="small">No prices would change.</p>'}
+${pv.skipped.length ? `<p class="small muted">Left alone: ${pv.skipped.map((s) => `${esc(s.title)} (${esc(s.reason)})`).join(', ')}</p>` : ''}
+${pv.changes.length ? `<button class="primary small" id="reprice-go">Apply ${pv.changes.length} price change${pv.changes.length === 1 ? '' : 's'}</button>` : ''}`;
+      if (pv.changes.length) $('#reprice-go').onclick = async () => {
+        const done = await api('/artworks/reprice', { method: 'POST', body: { ...body, dryRun: false } });
+        const undo = done.changes.map((c) => ({ id: c.id, price: c.from }));
+        $('#reprice').hidden = true;
+        await load();
+        const t = $('#toast');
+        t.innerHTML = `Repriced ${done.changes.length} work${done.changes.length === 1 ? '' : 's'}. <button class="small" id="undo-reprice" style="margin-left:8px;color:inherit;border-color:currentColor">Undo</button>`;
+        t.className = 'show'; t.style.pointerEvents = 'auto';
+        clearTimeout(toast.t); toast.t = setTimeout(() => { t.className = ''; t.style.pointerEvents = ''; }, 12000);
+        $('#undo-reprice').onclick = async () => { await api('/artworks/set-prices', { method: 'POST', body: { prices: undo } }); t.style.pointerEvents = ''; toast('Prices restored'); load(); };
+      };
+    } catch (err) { fail(err); }
+  };
   await load();
 }
 
+// Make small thumbnails in the browser for images that only have a full-size original.
+let thumbQueue = Promise.resolve();
+function makeThumbs() {
+  for (const img of $$('img[data-mkthumb]')) {
+    const id = img.dataset.mkthumb; img.removeAttribute('data-mkthumb');
+    if (id === 'true') continue;
+    thumbQueue = thumbQueue.then(async () => {
+      try {
+        const bmp = await createImageBitmap(await (await fetch(img.src)).blob());
+        const scale = Math.min(1, 240 / Math.max(bmp.width, bmp.height));
+        const c = document.createElement('canvas'); c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(bmp, 0, 0, c.width, c.height);
+        const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.82));
+        await api(`/media/${id}/thumb`, { method: 'PUT', raw: blob });
+      } catch { /* the original keeps working */ }
+    });
+  }
+}
 function inputRow(name, label, value, { type = 'text', wide = false, help = '', attrs = '', idp = '' } = {}) {
   const id = `f-${idp}${name.replace(/\W/g, '-')}`;
   const control = type === 'textarea' ? `<textarea id="${id}" name="${name}" ${attrs}>${esc(value)}</textarea>` : `<input id="${id}" name="${name}" type="${type}" value="${esc(value)}" ${attrs}>`;
