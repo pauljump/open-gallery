@@ -196,8 +196,8 @@ ${rows.map((r) => `<tr class="clickable" data-id="${r.id}"><td><input type="chec
   await load();
 }
 
-function inputRow(name, label, value, { type = 'text', wide = false, help = '', attrs = '' } = {}) {
-  const id = `f-${name.replace(/\W/g, '-')}`;
+function inputRow(name, label, value, { type = 'text', wide = false, help = '', attrs = '', idp = '' } = {}) {
+  const id = `f-${idp}${name.replace(/\W/g, '-')}`;
   const control = type === 'textarea' ? `<textarea id="${id}" name="${name}" ${attrs}>${esc(value)}</textarea>` : `<input id="${id}" name="${name}" type="${type}" value="${esc(value)}" ${attrs}>`;
   return `<div class="field${wide ? ' wide' : ''}"><label for="${id}">${label}</label>${control}${help ? `<div class="small muted">${help}</div>` : ''}</div>`;
 }
@@ -347,7 +347,7 @@ async function artists() {
 <div class="tablewrap"><table><thead><tr><th>Artist</th><th>Works</th><th>Available</th><th></th></tr></thead><tbody>
 ${list.map((a) => `<tr><td><strong>${esc(a.name)}</strong>${a.nationality || a.birth_year ? `<div class="small muted">${esc([a.nationality, a.birth_year && `b. ${a.birth_year}`].filter(Boolean).join(', '))}</div>` : ''}</td>
 <td><a href="#/works?artist=${a.id}">${a.works}</a></td><td>${a.available || 0}</td><td><button class="small" data-edit="${a.id}">Edit</button></td></tr>
-<tr id="edit-${a.id}" hidden><td colspan="4"><form data-form="${a.id}" class="formgrid">${inputRow('name', 'Name', a.name)}${inputRow('nationality', 'Nationality', a.nationality)}${inputRow('birth_year', 'Born', a.birth_year)}${inputRow('website', 'Website', a.website, { type: 'url' })}${inputRow('bio', 'Bio', a.bio, { type: 'textarea', wide: true })}<div class="row wide"><button class="primary" type="submit">Save</button></div></form></td></tr>`).join('')}
+<tr id="edit-${a.id}" hidden><td colspan="4"><form data-form="${a.id}" class="formgrid">${inputRow('name', 'Name', a.name, { idp: a.id })}${inputRow('nationality', 'Nationality', a.nationality, { idp: a.id })}${inputRow('birth_year', 'Born', a.birth_year, { idp: a.id })}${inputRow('website', 'Website', a.website, { type: 'url', idp: a.id })}${inputRow('bio', 'Bio', a.bio, { type: 'textarea', wide: true, idp: a.id })}<div class="row wide"><button class="primary" type="submit">Save</button></div></form></td></tr>`).join('')}
 </tbody></table></div>`;
   $$('[data-edit]').forEach((b) => { b.onclick = () => { const r = $(`#edit-${b.dataset.edit}`); r.hidden = !r.hidden; if (!r.hidden) $('input', r).focus(); }; });
   $$('[data-form]').forEach((f) => { f.onsubmit = async (e) => { e.preventDefault(); try { await api(`/artists/${f.dataset.form}`, { method: 'PATCH', body: Object.fromEntries(new FormData(f)) }); toast('Saved'); artists(); } catch (err) { fail(err); } }; });
@@ -438,7 +438,7 @@ ${unassigned.length ? `<h2>Images not matched to a work (${unassigned.length})</
     }
     $('#img-status').textContent = `${matched} matched, ${dup} already there, ${unmatched} not matched, ${errs} could not be read.`;
     toast(`${matched} images matched`);
-    if (unmatched) setTimeout(importView, 1500);
+    if (unmatched) setTimeout(() => { if (location.hash.startsWith('#/import')) importView(); }, 1500);
   };
   $('#imgs-in').onchange = (e) => images([...e.target.files]);
   dropZone($('#img-drop'), images);

@@ -230,6 +230,8 @@ test('repeat import of the identical file changes nothing; re-import applies the
       assert.equal(ws2.db.prepare('SELECT COUNT(*) n FROM artworks').get().n, n0 + sc.added.length);
       const merged = getArtwork(ws2.db, matched2);
       assert.ok(merged.private.notes.includes(`PRIVATE-NOTE-${sc.nearDuplicate.newStock.slice(-4)}`), 'matched work took the merged row');
+      assert.equal(merged.stock_number, sc.nearDuplicate.matchesStock, 'merge keeps the catalog inventory number');
+      assert.equal(merged.extra['Other inventory number'], sc.nearDuplicate.newStock, 'merge records the other number');
     } finally { ws2.close(); }
   } finally { ws.close(); }
 });
