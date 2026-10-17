@@ -49,6 +49,33 @@ function start() {
 
 const commands = {
   start,
+  async 'host-backup'() {
+    // Nightly copy of every hosted gallery: one verified export per gallery plus the account list.
+    const { DatabaseSync } = await import('node:sqlite');
+    const { rmSync } = await import('node:fs');
+    const root = resolve(String(flags.root || join(homedir(), 'Open Gallery Hosted')));
+    const outBase = resolve(String(flags.out || ''));
+    const keep = Number(flags.keep || 14);
+    if (!flags.out || !existsSync(join(outBase, '..'))) throw new Error('Backup destination is not available (is the drive connected?)');
+    const day = new Date().toISOString().slice(0, 10);
+    const out = join(outBase, day);
+    mkdirSync(out, { recursive: true });
+    const acc = new DatabaseSync(join(root, 'accounts.db'));
+    acc.exec(`VACUUM INTO '${join(out, 'accounts.db').replace(/'/g, "''")}'`);
+    const galleries = acc.prepare('SELECT id, slug FROM galleries').all();
+    acc.close();
+    let ok = 0; const failed = [];
+    for (const g of galleries) {
+      const dir = join(root, 'galleries', g.id);
+      if (!existsSync(join(dir, 'gallery.db'))) continue;
+      try { const db = openWorkspace(dir); const { zip } = exportBundle(db, dir); db.close(); writeFileSync(join(out, `${g.slug}.zip`), zip); ok++; }
+      catch (e) { failed.push(`${g.slug}: ${e.message}`); }
+    }
+    const days = readdirSync(outBase).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    for (const d of days.slice(0, Math.max(0, days.length - keep))) rmSync(join(outBase, d), { recursive: true, force: true });
+    console.log(JSON.stringify({ day, galleries: galleries.length, exported: ok, failed, kept: Math.min(days.length, keep) }));
+    if (failed.length) process.exit(2);
+  },
   async host() {
     // Many galleries on one server. Put it behind HTTPS (for example a Cloudflare Tunnel).
     const { createHosted } = await import('../lib/hosted.mjs');
