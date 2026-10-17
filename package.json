@@ -1,6 +1,6 @@
 {
   "name": "open-gallery",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Free, open source inventory and catalog software for galleries. Runs on your own computer, imports your own files, exports everything.",
   "license": "AGPL-3.0-only",
   "type": "module",

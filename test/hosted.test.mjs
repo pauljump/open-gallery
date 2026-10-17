@@ -140,3 +140,39 @@ test('public work pages carry structured data and send inquiries straight to the
     assert.match((await form({ name: 'X', email: 'x@example.net', message: 'again' })).body, /try again later/);
   } finally { s.stop(); }
 });
+
+test('open catalog lists only opted-in galleries, only published works, and follows withdrawals', async () => {
+  const s = await start();
+  try {
+    const a = client(s.base); const b = client(s.base); const pub = client(s.base);
+    await a.call('/auth/signup', { method: 'POST', body: { gallery: 'Open One', email: 'o1@example.com', password: 'open one password' } });
+    await b.call('/auth/signup', { method: 'POST', body: { gallery: 'Closed Two', email: 'c2@example.com', password: 'closed two password' } });
+    const mk = (c, title, extra = {}) => c.call('/api/artworks', { method: 'POST', body: { artist: 'Una Example', title, price: 3000, price_visibility: 'show', availability: 'available', public: true, private: { notes: 'CATALOG-SECRET' }, ...extra } });
+    const shown = (await mk(a, 'Shown Work')).body;
+    await mk(a, 'Private Work', { public: false });
+    await mk(b, 'Closed Gallery Work');
+    await a.call('/api/settings', { method: 'PATCH', body: { 'privacy.listInOpenCatalog': true } });
+    await a.call('/api/publish', { method: 'POST', body: {} });
+    await b.call('/api/publish', { method: 'POST', body: {} });
+    let page = (await pub.call('/catalog', { app: false })).body;
+    assert.match(page, /Shown Work/);
+    assert.ok(!page.includes('Private Work') && !page.includes('Closed Gallery Work') && !page.includes('CATALOG-SECRET'));
+    const feed = (await pub.call('/catalog/feed.json', { app: false })).body;
+    assert.equal(feed.works.length, 1);
+    assert.equal(feed.works[0].ai_training_permitted, false, 'AI training is off unless the gallery turns it on');
+    assert.match(feed.works[0].url, /^\/g\/open-one\/works\//);
+    const workPage = (await pub.call(feed.works[0].url + 'index.html', { app: false })).body;
+    assert.match(workPage, /noai, noimageai/);
+    // Unpublish and republish: the work leaves the catalog.
+    await a.call(`/api/artworks/${shown.id}`, { method: 'PATCH', body: { public: false } });
+    await a.call('/api/publish', { method: 'POST', body: {} });
+    assert.equal((await pub.call('/catalog/feed.json', { app: false })).body.works.length, 0);
+    // Opting out removes the gallery even without republishing.
+    await a.call(`/api/artworks/${shown.id}`, { method: 'PATCH', body: { public: true } });
+    await a.call('/api/publish', { method: 'POST', body: {} });
+    assert.equal((await pub.call('/catalog/feed.json', { app: false })).body.works.length, 1);
+    await a.call('/api/settings', { method: 'PATCH', body: { 'privacy.listInOpenCatalog': false } });
+    page = (await pub.call('/catalog', { app: false })).body;
+    assert.ok(!page.includes('Shown Work'));
+  } finally { s.stop(); }
+});

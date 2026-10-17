@@ -753,6 +753,11 @@ ${inputRow('catalog.rightsStatement', 'Image rights statement', s.catalog.rights
 <label class="check wide"><input type="checkbox" name="catalog.showStockNumbers" ${s.catalog.showStockNumbers ? 'checked' : ''}> Show inventory numbers publicly</label>
 <label class="check wide" style="margin:8px 0 12px"><input type="checkbox" name="privacy.publicByDefault" ${s.privacy.publicByDefault ? 'checked' : ''}> Publish newly imported works automatically (off is safer)</label>
 </div></fieldset>
+${STATE.hosted ? `<fieldset><legend>Sharing</legend>
+<label class="check"><input type="checkbox" name="privacy.listInOpenCatalog" ${s.privacy.listInOpenCatalog ? 'checked' : ''}> List my published works in the open catalog</label>
+<p class="small muted" style="margin:4px 0 12px 26px">Collectors can browse works from participating galleries at <a href="/catalog" target="_blank" rel="noopener">/catalog</a>. Each work links to your own page, and inquiries come straight to you. Only what you have published is shown; turn this off and your works leave the catalog on the next refresh.</p>
+<label class="check"><input type="checkbox" name="privacy.allowAITraining" ${s.privacy.allowAITraining ? 'checked' : ''}> Allow my published works to be used to train AI models</label>
+<p class="small muted" style="margin:4px 0 12px 26px">Off unless you turn it on. It covers only what you publish. Private fields, prices you hide, contacts, buyers and sales are never included.</p></fieldset>` : ''}
 <div class="row"><button class="primary" type="submit">Save settings</button><span class="small muted">Build the public catalog again to see changes online.</span></div>
 </div><aside class="sticky"><div class="card"><h3>Preview</h3><div class="swatch-preview" id="swatch"></div></div></aside></div></form>
 <h2>Your own fields</h2><p class="sub">Add fields your gallery tracks, like "Crate number" or "Series". Choose whether each one can be published.</p>
