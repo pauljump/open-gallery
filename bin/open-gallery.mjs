@@ -29,7 +29,7 @@ function rememberDataDir() {
   if (!flags.data) return;
   try { mkdirSync(join(CONFIG, '..'), { recursive: true }); writeFileSync(CONFIG, JSON.stringify({ dataDir }, null, 2)); } catch {}
 }
-const port = Number(flags.port || process.env.OPEN_GALLERY_PORT || 4380);
+const port = Number(flags.port || process.env.OPEN_GALLERY_PORT || process.env.PORT || 4380);
 
 function start() {
   rememberDataDir();
