@@ -1,5 +1,13 @@
 # Verification results
 
+## Release 0.4.0: hosted mode and importers
+
+`npm test`: 43 tests, 43 passing. New: hosted accounts (sign-up, sign-in, sign-out, wrong password, duplicate email), two galleries that cannot see each other's works through the list or by id, public catalog pages that exist only after publishing and never include private notes, path traversal refused, cross-site writes refused, unknown hosts refused, sign-in throttling after 20 attempts, the storage limit, and account deletion removing workspace and public pages. Importers: an Artsy-style sheet maps every column and matches images by the file names listed; a unit column sets centimetres; a test website yields both artwork pages (one with structured data, one by page layout), skips the page robots.txt disallows, and its images download once and are recognised as duplicates on a second run. Private and local network addresses are refused in hosted mode.
+
+Browser run of hosted mode: sign-up to a working empty workspace in 0.7 s, sample gallery loaded at 3.5 s, public catalog live at /g/<name>/ at 5.7 s with 22 works; a second account saw 0 works; sign-out returned to the sign-in page; no page errors; no horizontal scroll at 390 px.
+
+Not verified: a real deployment behind HTTPS, many simultaneous galleries, website import against real gallery sites, and server-side backups (none run yet; owners can export).
+
 ## Release 0.3.0: faster daily tasks
 
 `npm test`: 36 tests, 36 passing. New: price and size filters (a 120 cm work is correctly excluded from a 40 in wall), price sorting, and bulk repricing that previews without writing, skips sold and unpriced works, rounds as asked, undoes exactly, and counts as a staff edit for later imports.

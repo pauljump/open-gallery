@@ -33,7 +33,7 @@ const fail = (e) => { console.error(e); toast(e.message || String(e), true); };
 async function refreshState() {
   STATE = await api('/state');
   $('#gallery-name').textContent = STATE.settings.gallery.name || 'Open Gallery';
-  $('#version').textContent = `Open Gallery ${STATE.version}`;
+  if ($('#version')) $('#version').textContent = `Open Gallery ${STATE.version}`;
   if (STATE.hosted && !ACCOUNT) {
     ACCOUNT = await api('/account');
     $('.nav-foot').innerHTML = `Private to your account.<br>${esc(ACCOUNT.email)}<br><button class="link small" id="signout">Sign out</button><br><span>Open Gallery ${esc(STATE.version)}</span>`;
@@ -520,7 +520,12 @@ async function importView() {
 <div class="drop" id="sheet-drop"><label for="sheet-in" style="margin:0;color:inherit;cursor:pointer">Drop a spreadsheet here or <u>choose a file</u></label><input id="sheet-in" type="file" accept=".csv,.tsv,.txt,.xlsx" class="sr"></div></div>
 <div class="card"><h2>2. Images</h2><p class="small muted">Name images by inventory number: <code>GL-1001.jpg</code>, extra views <code>GL-1001_2.jpg</code>. Import the spreadsheet first so they can be matched.</p>
 <div class="drop" id="img-drop"><label for="imgs-in" style="margin:0;color:inherit;cursor:pointer">Drop images or a folder here or <u>choose files</u></label><input id="imgs-in" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple class="sr"></div>
-<div id="img-progress"></div></div></div>
+<div id="img-progress"></div></div>
+<div class="card"><h2>Or: from your website</h2><p class="small muted">Open Gallery reads the public pages of your own gallery website and finds artwork pages. You review everything before it is saved. Images are fetched afterwards from the same pages.</p>
+<form id="site-form"><label for="site-url">Your website address</label><input id="site-url" type="url" placeholder="https://yourgallery.com" required>
+<label class="check small" style="margin-top:8px"><input type="checkbox" id="site-ok" required> This is my gallery's own website</label>
+<div class="row" style="margin-top:8px"><button class="small">Read my website</button><span class="small muted" id="site-status" aria-live="polite"></span></div></form></div></div>
+<p class="small muted">Coming from another system? Export your inventory as a spreadsheet (Artlogic, ArtCloud and most systems can) and import that copy. Columns are matched automatically; an Artsy bulk-import sheet works too.</p>
 <div id="import-work"></div>
 ${unassigned.length ? `<h2>Images not matched to a work (${unassigned.length})</h2><p class="small muted">Their file names did not match an inventory number. Assign each one, or leave them here.</p><div class="media-grid">${unassigned.map((m) => `<div class="media-item"><img src="${m.url}" alt="${esc(m.original_name)}"><div class="small">${esc(m.original_name)}</div><label class="sr" for="as-${m.id}">Assign ${esc(m.original_name)} to work</label><input id="as-${m.id}" data-assign="${m.id}" placeholder="Inventory number" style="margin-top:4px"></div>`).join('')}</div>` : ''}
 <h2>Past imports</h2><ul class="list small">${history.map((h) => `<li><span class="grow">${esc(h.filename)}</span><span class="pill ${h.status === 'applied' ? 'ok' : ''}">${h.status === 'applied' ? `Applied: ${h.summary.created ?? 0} new, ${h.summary.updated ?? 0} updated` : 'Not applied'}</span><span class="muted">${esc(when(h.created_at))}</span></li>`).join('') || '<li class="muted">None yet.</li>'}</ul>`;
@@ -531,6 +536,17 @@ ${unassigned.length ? `<h2>Images not matched to a work (${unassigned.length})</
     } catch (e) { fail(e); }
   };
   $('#sheet-in').onchange = (e) => e.target.files[0] && sheet(e.target.files[0]);
+  $('#site-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('#site-form button'); btn.disabled = true;
+    $('#site-status').textContent = 'Reading your website. This can take a minute…';
+    try {
+      const up = await api('/imports/website', { method: 'POST', body: { url: $('#site-url').value, confirm: $('#site-ok').checked } });
+      $('#site-status').textContent = `Read ${up.crawl.pages} pages and found ${up.crawl.works} works${up.crawl.truncated ? ' (stopped at the page limit)' : ''}.`;
+      importReview(up);
+    } catch (err) { $('#site-status').textContent = ''; fail(err); }
+    btn.disabled = false;
+  };
   dropZone($('#sheet-drop'), (files) => sheet(files[0]));
   const images = async (files) => {
     files = files.filter((f) => /\.(png|jpe?g|gif|webp)$/i.test(f.name));
@@ -592,7 +608,18 @@ ${s.notInFile ? `<p class="notice">${s.notInFile} work${s.notInFile === 1 ? ' is
     $$('[data-field]').forEach((sel) => { sel.onchange = () => { const [row, field] = sel.dataset.field.split('|'); decisions[row] = { ...(decisions[row] || {}), fields: { ...(decisions[row]?.fields || {}), [field]: sel.value } }; render(); }; });
     $('#apply').onclick = async () => {
       $('#apply').disabled = true;
-      try { const r = await api(`/imports/${up.id}/apply`, { method: 'POST', body: { decisions } }); toast(`Applied: ${r.created} new, ${r.updated} updated`); box.innerHTML = `<p class="notice ok">Import applied: ${r.created} new, ${r.updated} updated, ${r.skipped} skipped. ${r.notInFile ? `${r.notInFile} work(s) not in the file were flagged, not deleted.` : ''} <a href="#/works">See your works</a></p>`; }
+      try {
+        const r = await api(`/imports/${up.id}/apply`, { method: 'POST', body: { decisions } });
+        toast(`Applied: ${r.created} new, ${r.updated} updated`);
+        const hasLinks = mapping.includes('image_urls');
+        box.innerHTML = `<p class="notice ok">Import applied: ${r.created} new, ${r.updated} updated, ${r.skipped} skipped. ${r.notInFile ? `${r.notInFile} work(s) not in the file were flagged, not deleted.` : ''} <a href="#/works">See your works</a></p>
+${hasLinks ? '<div class="row"><button class="primary" id="fetch-imgs">Fetch images from the links in this file</button><span class="small muted" id="fetch-status" aria-live="polite"></span></div>' : ''}`;
+        if (hasLinks) $('#fetch-imgs').onclick = async (ev) => {
+          ev.target.disabled = true; $('#fetch-status').textContent = 'Downloading images…';
+          try { const f = await api(`/imports/${up.id}/fetch-images`, { method: 'POST', body: {} }); $('#fetch-status').textContent = `${f.added} images added, ${f.duplicates} already there${f.failed.length ? `, ${f.failed.length} could not be downloaded` : ''}.`; }
+          catch (err2) { fail(err2); ev.target.disabled = false; }
+        };
+      }
       catch (e) { fail(e); $('#apply').disabled = false; }
     };
   };

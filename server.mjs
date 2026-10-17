@@ -4,7 +4,8 @@ import { readFileSync, existsSync, createReadStream, statSync, mkdirSync, writeF
 import { join, extname, resolve, normalize, sep } from 'node:path';
 import { openWorkspace, isEmptyWorkspace, J, audit } from './lib/db.mjs';
 import * as store from './lib/store.mjs';
-import { uploadImport, previewImport, applyImport, listImports, importImages } from './lib/importer.mjs';
+import { uploadImport, previewImport, applyImport, listImports, importImages, fetchImportImages } from './lib/importer.mjs';
+import { crawlSite, worksToCSV } from './lib/siteimport.mjs';
 import { getSettings, updateSettings, FONT_STACKS } from './lib/settings.mjs';
 import { buildSite, printCatalogHTML, publicArtwork } from './lib/site.mjs';
 import { exportBundle, restoreBundle, verifyWorkspace, dataSize } from './lib/backup.mjs';
@@ -157,6 +158,17 @@ export function createApp({ dataDir, host = '127.0.0.1', hosted = false, quotaBy
     }
     if (method === 'POST' && p === '/imports') return send(res, 201, uploadImport(db, dataDir, q.name, await body(req, 100 * 1024 * 1024)));
     if (method === 'GET' && p === '/imports') return send(res, 200, listImports(db));
+    if (method === 'POST' && p === '/imports/website') {
+      const { url, confirm } = await json(req);
+      if (!confirm) throw store.httpError(400, "Confirm that this is your gallery's own website");
+      let crawl;
+      try { crawl = await crawlSite(String(url || ''), { allowPrivate: !hosted, maxPages: 300 }); } catch (e) { throw store.httpError(400, e.message); }
+      if (!crawl.works.length) throw store.httpError(422, `Read ${crawl.pages} page${crawl.pages === 1 ? '' : 's'} but found no artwork pages. Export a spreadsheet from your website or inventory system instead.`);
+      const host = new URL(url).hostname.replace(/[^\w.-]/g, '');
+      const up = uploadImport(db, dataDir, `website-${host}.csv`, Buffer.from(worksToCSV(crawl.works)));
+      return send(res, 201, { ...up, crawl: { pages: crawl.pages, works: crawl.works.length, truncated: crawl.truncated, errors: crawl.errors.length } });
+    }
+    if ((r = m(/^\/imports\/(im_\w+)\/fetch-images$/)) && method === 'POST') return send(res, 200, await fetchImportImages(db, dataDir, r[1], { allowPrivate: !hosted }));
     if ((r = m(/^\/imports\/(im_\w+)\/preview$/)) && method === 'POST') return send(res, 200, previewImport(db, dataDir, r[1], await json(req)));
     if ((r = m(/^\/imports\/(im_\w+)\/apply$/)) && method === 'POST') return send(res, 200, applyImport(db, dataDir, r[1], await json(req)));
     if (method === 'POST' && p === '/images') return send(res, 200, importImages(db, dataDir, [{ name: q.name || 'image', buf: await body(req, 200 * 1024 * 1024) }]));

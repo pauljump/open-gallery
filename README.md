@@ -18,6 +18,19 @@ What it does today (version 0.3):
 
 No account, subscription, commission or AI service is needed for any of this.
 
+## Hosted or on your own computer
+
+The same software runs in two ways:
+
+- **On your own computer** (below): your data never leaves it.
+- **Hosted**: `open-gallery host --root DIR --origin https://your.domain --host your.domain` runs many galleries on one server, each in its own workspace with its own database and images. Galleries sign up with an email and password, and each one's public catalog is served at `/g/<name>/` after it chooses to publish. Put it behind HTTPS. Each workspace has a storage limit (2 GB by default) and can be exported or deleted by its owner at any time.
+
+## Importing from what you already have
+
+- **Spreadsheets** from any system: columns are matched automatically, including exports laid out like Artlogic, ArtCloud or an Artsy bulk-import sheet. A unit column (in/cm) and an image file names column are understood.
+- **Image links**: if your spreadsheet has image web addresses, Open Gallery downloads them after the import.
+- **Your own website**: give the address of your gallery's site. Open Gallery reads its public pages (respecting robots.txt), finds artwork pages from structured data or page layout, and turns them into a spreadsheet you review before anything is saved.
+
 ## Try it
 
 You need [Node.js](https://nodejs.org) 22.13 or newer.
