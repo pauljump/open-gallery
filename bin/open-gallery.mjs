@@ -49,6 +49,17 @@ function start() {
 
 const commands = {
   start,
+  async host() {
+    // Many galleries on one server. Put it behind HTTPS (for example a Cloudflare Tunnel).
+    const { createHosted } = await import('../lib/hosted.mjs');
+    const root = resolve(String(flags.root || join(homedir(), 'Open Gallery Hosted')));
+    const origin = String(flags.origin || `http://localhost:${port}`).replace(/\/$/, '');
+    const hosts = String(flags.host || '').split(',').filter(Boolean);
+    const h = createHosted({ root, publicOrigin: origin, quotaBytes: Number(flags.quota || 2e9), secureCookies: origin.startsWith('https://'), allowedHosts: hosts });
+    h.server.listen(port, String(flags.bind || '127.0.0.1'), () => console.log(`Open Gallery hosted mode at ${origin} (listening on ${port})\nData: ${root}`));
+    const stop = () => { h.close(); process.exit(0); };
+    process.on('SIGINT', stop); process.on('SIGTERM', stop);
+  },
   demo() {
     rememberDataDir();
     if (!isEmptyWorkspace(dataDir)) { console.log(`Workspace ${dataDir} already has data; demo data was not added.`); return flags['no-start'] ? undefined : start(); }
@@ -181,6 +192,7 @@ const commands = {
   open-gallery settings [set KEY VALUE]  Show or change settings (e.g. theme.colorAccent #224466)
   open-gallery verify               Check every image and relationship
   open-gallery doctor               Check this computer is ready
+  open-gallery host --root DIR --origin https://… --host name   Run the multi-gallery hosted version
 
 Options: --data FOLDER (remembered after start or demo; default ~/Open Gallery), --port N (default 4380)`);
   },

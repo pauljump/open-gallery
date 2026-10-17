@@ -4,6 +4,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const view = $('#view');
 let STATE = null;
+let ACCOUNT = null;
 
 async function api(path, { method = 'GET', body, raw, headers = {} } = {}) {
   const opts = { method, headers: { 'x-open-gallery': '1', ...headers } };
@@ -33,6 +34,11 @@ async function refreshState() {
   STATE = await api('/state');
   $('#gallery-name').textContent = STATE.settings.gallery.name || 'Open Gallery';
   $('#version').textContent = `Open Gallery ${STATE.version}`;
+  if (STATE.hosted && !ACCOUNT) {
+    ACCOUNT = await api('/account');
+    $('.nav-foot').innerHTML = `Private to your account.<br>${esc(ACCOUNT.email)}<br><button class="link small" id="signout">Sign out</button><br><span>Open Gallery ${esc(STATE.version)}</span>`;
+    $('#signout').onclick = async () => { await fetch('/auth/logout', { method: 'POST', headers: { 'x-open-gallery': '1' } }); location.href = '/'; };
+  }
   return STATE;
 }
 
@@ -88,7 +94,7 @@ async function home() {
 <div class="card"><h2>Or look around first</h2><p>Load a fictional sample gallery with 60 works and generated images. You can start fresh later in a new folder.</p><button id="load-demo">Load the sample gallery</button></div>
 <div class="card"><h2>Coming from another workspace?</h2><p>Restore a complete Open Gallery export into this empty workspace.</p><a class="btn" href="#/backup">Restore an export</a></div>
 </div>
-<p class="muted small" style="margin-top:24px">Workspace folder: <code>${esc(STATE.dataDir)}</code></p>`;
+${STATE.dataDir ? `<p class="muted small" style="margin-top:24px">Workspace folder: <code>${esc(STATE.dataDir)}</code></p>` : ''}`;
     $('#load-demo').onclick = async (ev) => {
       ev.target.disabled = true; ev.target.textContent = 'Creating sample gallery…';
       try { const r = await api('/demo', { method: 'POST' }); toast(`Sample gallery created: ${r.import.created} works`); route(); } catch (e) { fail(e); ev.target.disabled = false; ev.target.textContent = 'Load the sample gallery'; }
@@ -619,8 +625,9 @@ async function publish() {
 <div class="card"><h2>Public catalog website</h2>
 <p>${STATE.stats.public} published work${STATE.stats.public === 1 ? '' : 's'}. Building creates a folder of plain web pages, images, a printable catalog per exhibition, and an open <code>catalog.json</code> feed.</p>
 <div class="row"><button class="primary" id="build">Build the public catalog</button>${last ? `<a class="btn" href="/site/index.html" target="_blank" rel="noopener">Preview the last build</a>` : ''}</div>
-<div id="build-out" aria-live="polite">${last ? `<p class="small muted">Last built ${esc(when(last.builtAt))} into <code>${esc(last.outDir)}</code>.</p>` : ''}</div>
-<details style="margin-top:10px"><summary>How to put it online</summary><div class="small">
+<div id="build-out" aria-live="polite">${last ? `<p class="small muted">Last built ${esc(when(last.builtAt))}${STATE.hosted ? '' : ` into <code>${esc(last.outDir)}</code>`}.</p>` : ''}</div>
+${STATE.hosted ? `<p class="small">Each build is published at <a href="${esc(ACCOUNT.publicUrl)}" target="_blank" rel="noopener">${esc(ACCOUNT.publicUrl)}</a>. You can link to it from your own website. Nothing appears there until you build.</p>` : ''}
+<details style="margin-top:10px" ${STATE.hosted ? 'hidden' : ''}><summary>How to put it online</summary><div class="small">
 <p>The build is a folder on this computer. It is not online yet. To publish it, upload that folder to any static host. Options:</p>
 <ul><li><strong>Your existing website host</strong>: upload it to a sub-folder such as <code>/catalog</code>. Usually no extra cost.</li>
 <li><strong>A free static host</strong> such as Cloudflare Pages, Netlify or GitHub Pages. Free tiers exist; a custom domain costs roughly $10–20 a year from a registrar.</li>
@@ -650,7 +657,7 @@ ${recon.length ? '<a class="btn small" href="/api/artsy/reconciliation.csv">Down
         }
       }
       const r = await api('/publish', { method: 'POST' });
-      out.innerHTML = `<p class="notice ok">Built ${r.works} work pages, ${r.exhibitions} exhibition${r.exhibitions === 1 ? '' : 's'} and ${r.images} image${r.images === 1 ? '' : 's'}${r.withdrawn ? `; ${r.withdrawn} withdrawn work${r.withdrawn === 1 ? '' : 's'} listed in the feed` : ''}. Folder: <code>${esc(r.outDir)}</code></p>
+      out.innerHTML = `<p class="notice ok">Built ${r.works} work pages, ${r.exhibitions} exhibition${r.exhibitions === 1 ? '' : 's'} and ${r.images} image${r.images === 1 ? '' : 's'}${r.withdrawn ? `; ${r.withdrawn} withdrawn work${r.withdrawn === 1 ? '' : 's'} listed in the feed` : ''}. ${STATE.hosted ? `Live at <a href="${esc(ACCOUNT.publicUrl)}" target="_blank" rel="noopener">${esc(ACCOUNT.publicUrl)}</a>` : `Folder: <code>${esc(r.outDir)}</code>`}</p>
 ${r.warnings.map((w) => `<p class="notice warn small">${esc(w.message)}</p>`).join('')}<a class="btn" href="/site/index.html" target="_blank" rel="noopener">Open the preview</a>`;
       refreshState();
     } catch (e) { fail(e); }
@@ -776,8 +783,17 @@ async function backup() {
 <a class="btn primary" href="/api/export" download>Download export</a></div>
 <div class="card"><h2>Check this workspace</h2><p>Confirms every image file is present and undamaged and every relationship is intact.</p><button id="verify">Run check</button><div id="verify-out" aria-live="polite"></div></div>
 <div class="card"><h2>Restore</h2>${STATE.empty ? `<p>This workspace is empty, so you can restore an export into it.</p><div class="drop" id="restore-drop"><label for="restore-in" style="margin:0;color:inherit;cursor:pointer">Drop an export .zip or <u>choose a file</u></label><input id="restore-in" type="file" accept=".zip" class="sr"></div><div id="restore-out" aria-live="polite"></div>`
-    : `<p>Restore only runs into an <strong>empty</strong> workspace, so it can never overwrite your current catalog. To restore, start Open Gallery with a new folder:</p><pre class="small" style="white-space:pre-wrap">open-gallery start --data "~/Open Gallery Restored"</pre><p class="small muted">or ask your assistant to "restore my Open Gallery export into a new workspace".</p>`}</div></div>
-<p class="small muted" style="margin-top:20px">Workspace folder: <code>${esc(STATE.dataDir)}</code>. Copying this folder while the app is stopped is also a complete backup.</p>`;
+    : STATE.hosted ? '<p>Restore only runs into an <strong>empty</strong> workspace, so it can never overwrite your current catalog. To restore here, create a new gallery account and restore into it, or restore into Open Gallery on your own computer.</p>'
+    : `<p>Restore only runs into an <strong>empty</strong> workspace, so it can never overwrite your current catalog. To restore, start Open Gallery with a new folder:</p><pre class="small" style="white-space:pre-wrap">open-gallery start --data "~/Open Gallery Restored"</pre><p class="small muted">or ask your assistant to "restore my Open Gallery export into a new workspace".</p>`}</div>
+${STATE.hosted ? `<div class="card"><h2>Leave</h2><p>Your export opens in Open Gallery on your own computer, with everything intact. Deleting your account removes your workspace and public catalog from this server.</p>
+<form id="del-acct" class="row"><label class="sr" for="del-pw">Password</label><input id="del-pw" type="password" placeholder="Your password" autocomplete="current-password" style="width:200px" required><button class="danger">Delete account and data</button></form></div>` : ''}</div>
+${STATE.dataDir ? `<p class="small muted" style="margin-top:20px">Workspace folder: <code>${esc(STATE.dataDir)}</code>. Copying this folder while the app is stopped is also a complete backup.</p>` : ''}`;
+  if ($('#del-acct')) $('#del-acct').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('#del-acct button');
+    if (!confirmInline(btn, 'Download your export first. Click again to delete')) return;
+    try { await api('/account', { method: 'DELETE', body: { password: $('#del-pw').value } }); location.href = '/'; } catch (err) { fail(err); }
+  };
   $('#verify').onclick = async () => {
     const r = await api('/verify');
     $('#verify-out').innerHTML = r.ok ? `<p class="notice ok">All ${r.images} images and all relationships check out. Workspace size ${(r.bytes / 1e6).toFixed(1)} MB.</p>` : `<p class="notice bad">${r.problems.map(esc).join('<br>')}</p>`;

@@ -18,7 +18,7 @@ const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).ver
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8', '.ico': 'image/x-icon' };
 
-export function createApp({ dataDir, host = '127.0.0.1' }) {
+export function createApp({ dataDir, host = '127.0.0.1', hosted = false, quotaBytes = 0 }) {
   dataDir = resolve(dataDir);
   let db = openWorkspace(dataDir);
   const siteDir = join(dataDir, 'site');
@@ -48,7 +48,7 @@ export function createApp({ dataDir, host = '127.0.0.1' }) {
   function state() {
     const lastBuild = J(db.prepare("SELECT value FROM meta WHERE key='last_site_build'").get()?.value, null);
     return {
-      version: VERSION, dataDir, stats: store.stats(db), settings: getSettings(db), connectors: connectors(db), lastBuild,
+      version: VERSION, dataDir: hosted ? null : dataDir, hosted, stats: store.stats(db), settings: getSettings(db), connectors: connectors(db), lastBuild,
       workspaceId: db.prepare("SELECT value FROM meta WHERE key='workspace_id'").get()?.value,
       fonts: Object.fromEntries(Object.entries(FONT_STACKS).map(([k, v]) => [k, v.label])), availability: AVAILABILITY,
       fields: FIELDS.map(({ key, label, visibility, type }) => ({ key, label, visibility, type })), customFields: store.listCustomFields(db),
@@ -217,14 +217,19 @@ export function createApp({ dataDir, host = '127.0.0.1' }) {
   }
 
   const allowedHosts = new Set([`127.0.0.1`, 'localhost', '[::1]', host]);
-  const server = createServer(async (req, res) => {
+  const UPLOADS = /^\/api\/(media|images|imports|restore)(\/|$|\?)|^\/api\/media\/md_\w+\/(web|thumb)$/;
+  const handle = async (req, res) => {
     const url = new URL(req.url, 'http://local');
     try {
-      // Block DNS-rebinding and cross-site requests: the app is for this computer.
+      // Locally: block DNS-rebinding; the app is for this computer. Hosted: the account layer checks the host.
       const hostName = (req.headers.host || '').replace(/:\d+$/, '');
-      if (!allowedHosts.has(hostName)) return send(res, 403, { error: 'Open Gallery only answers on this computer.' });
+      if (!hosted && !allowedHosts.has(hostName)) return send(res, 403, { error: 'Open Gallery only answers on this computer.' });
       if (url.pathname.startsWith('/api/')) {
         if (req.method !== 'GET' && req.headers['x-open-gallery'] !== '1') return send(res, 403, { error: 'Missing app header' });
+        if (quotaBytes && req.method !== 'GET' && UPLOADS.test(url.pathname)) {
+          const incoming = Number(req.headers['content-length'] || 0);
+          if (dataSize(dataDir) + incoming > quotaBytes) return send(res, 413, { error: `This workspace has reached its ${Math.round(quotaBytes / 1e9)} GB storage limit. Export a backup and remove unused images, or run Open Gallery on your own computer for unlimited space.` });
+        }
         return await api(req, res, url);
       }
       if (url.pathname.startsWith('/media/')) {
@@ -254,8 +259,9 @@ export function createApp({ dataDir, host = '127.0.0.1' }) {
     } catch (e) {
       const status = e.status || 500;
       if (status === 500) console.error(e);
-      return send(res, status, { error: status === 500 ? `Something went wrong: ${e.message}` : e.message, ...(e.undecided ? { undecided: e.undecided } : {}) });
+      return send(res, status, { error: status === 500 ? (hosted ? 'Something went wrong. Please try again.' : `Something went wrong: ${e.message}`) : e.message, ...(e.undecided ? { undecided: e.undecided } : {}) });
     }
-  });
-  return { server, get db() { return db; }, close: () => { server.close(); db.close(); } };
+  };
+  const server = createServer(handle);
+  return { server, handle, get db() { return db; }, close: () => { server.close(); db.close(); } };
 }

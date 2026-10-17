@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Open Gallery</title>
+<meta name="description" content="Free, open source inventory, consignment and catalog software for galleries. Sign up and start in minutes; export everything at any time.">
+<link rel="stylesheet" href="/hosted.css">
+</head>
+<body>
+<main>
+  <header><span class="mark" aria-hidden="true"></span> Open Gallery</header>
+  <h1>Your gallery's inventory, consignments and catalog, in one place.</h1>
+  <p class="lede">Free and open source. Import your spreadsheet, track who owns each work and what you owe your artists, build exhibitions and a public catalog. Export everything, any time.</p>
+  <div class="cols">
+    <form id="signup" class="card" novalidate>
+      <h2>Create your gallery</h2>
+      <label for="s-gallery">Gallery name</label><input id="s-gallery" name="gallery" autocomplete="organization" required>
+      <label for="s-email">Email</label><input id="s-email" name="email" type="email" autocomplete="email" required>
+      <label for="s-password">Password <span class="hint">(at least 10 characters)</span></label><input id="s-password" name="password" type="password" autocomplete="new-password" minlength="10" required>
+      <button type="submit">Create gallery</button>
+      <p class="small">Your workspace is private. Nothing is public until you choose to publish it.</p>
+    </form>
+    <form id="login" class="card" novalidate>
+      <h2>Sign in</h2>
+      <label for="l-email">Email</label><input id="l-email" name="email" type="email" autocomplete="email" required>
+      <label for="l-password">Password</label><input id="l-password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Sign in</button>
+    </form>
+  </div>
+  <p id="msg" role="alert"></p>
+  <ul class="facts">
+    <li><strong>Free.</strong> No subscription, commission or per-user fee.</li>
+    <li><strong>Yours to take.</strong> One download holds every image, record and setting, and opens without us.</li>
+    <li><strong>Runs anywhere.</strong> The same software runs on your own computer: <a href="https://github.com/pauljump/open-gallery">source and instructions</a>.</li>
+  </ul>
+  <p class="small">This hosted version is new. It keeps each gallery's data separate and backs it up, but it has not been used by many galleries yet, so keep your own exports too.</p>
+</main>
+<script>
+const msg = document.getElementById('msg');
+for (const [id, path] of [['signup', '/auth/signup'], ['login', '/auth/login']]) {
+  document.getElementById(id).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+    const body = Object.fromEntries(new FormData(e.target));
+    const btn = e.target.querySelector('button'); btn.disabled = true;
+    try {
+      const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-open-gallery': '1' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Something went wrong');
+      location.href = '/';
+    } catch (err) { msg.textContent = err.message; btn.disabled = false; }
+  });
+}
+</script>
+</body>
+</html>
