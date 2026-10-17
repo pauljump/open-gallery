@@ -23,7 +23,9 @@ No account, subscription, commission or AI service is needed for any of this.
 The same software runs in two ways:
 
 - **On your own computer** (below): your data never leaves it.
-- **Hosted**: `open-gallery host --root DIR --origin https://your.domain --host your.domain` runs many galleries on one server, each in its own workspace with its own database and images. Galleries sign up with an email and password, and each one's public catalog is served at `/g/<name>/` after it chooses to publish. Put it behind HTTPS. Each workspace has a storage limit (2 GB by default) and can be exported or deleted by its owner at any time.
+- **Hosted**: `open-gallery host --root DIR --origin https://your.domain --host your.domain` runs many galleries on one server, each in its own workspace with its own database and images. Galleries sign up with an email and password, and each one's public catalog is served at `/g/<name>/` after it chooses to publish. Put it behind HTTPS. Each workspace has a storage limit (2 GB by default) and can be exported or deleted by its owner at any time. `open-gallery host-backup --root DIR --out BACKUP_DIR` writes a verified export of every gallery plus the account list, keeping 14 days; run it nightly.
+
+Published catalogs on the hosted version include structured data and share previews for each work, a sitemap, and an inquiry form that delivers messages straight into the gallery's workspace.
 
 ## Importing from what you already have
 

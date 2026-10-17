@@ -1,5 +1,11 @@
 # Verification results
 
+## Release 0.5.0: live hosted version, search-friendly pages, inquiries, backups
+
+`npm test`: 44 tests, 44 passing. New: published work pages carry VisualArtwork structured data (price only when shown), a canonical address, share-preview tags and a sitemap entry; the inquiry form stores messages in the gallery's own workspace, ignores a hidden spam field, rejects incomplete messages, adds the sender to contacts on request, and limits a connection to 5 messages an hour.
+
+Live check on the deployed hosted version over HTTPS: sign-up in 2.2 s with a Secure, HttpOnly, SameSite=Lax session cookie; sample gallery loaded at 6.6 s; catalog published at 25 s (making web-sized images over the network is the slow part); public pages, structured data, canonical links and the inquiry form present; the test account was then deleted from the app and its public catalog returned 404. Backup: a nightly job exports every gallery and the account list; a test export restored with every checksum matching.
+
 ## Release 0.4.0: hosted mode and importers
 
 `npm test`: 43 tests, 43 passing. New: hosted accounts (sign-up, sign-in, sign-out, wrong password, duplicate email), two galleries that cannot see each other's works through the list or by id, public catalog pages that exist only after publishing and never include private notes, path traversal refused, cross-site writes refused, unknown hosts refused, sign-in throttling after 20 attempts, the storage limit, and account deletion removing workspace and public pages. Importers: a marketplace-style bulk sheet maps every column and matches images by the file names listed; a unit column sets centimetres; a test website yields both artwork pages (one with structured data, one by page layout), skips the page robots.txt disallows, and its images download once and are recognised as duplicates on a second run. Private and local network addresses are refused in hosted mode.
