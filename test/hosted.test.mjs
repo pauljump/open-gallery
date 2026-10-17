@@ -103,3 +103,40 @@ test('unknown hosts, sign-in throttling, storage limit and account deletion', as
     assert.equal(last.status, 429);
   } finally { s.stop(); }
 });
+
+test('public work pages carry structured data and send inquiries straight to the gallery', async () => {
+  const s = await start();
+  try {
+    const a = client(s.base);
+    const su = await a.call('/auth/signup', { method: 'POST', body: { gallery: 'Delta Room', email: 'd@example.com', password: 'delta password 1' } });
+    await a.call('/api/settings', { method: 'PATCH', body: { 'catalog.publicBaseUrl': 'https://catalog.example.org/g/delta-room' } });
+    const w = (await a.call('/api/artworks', { method: 'POST', body: { artist: 'Ivo Example', title: 'Night Field', year: '2025', medium: 'Oil on linen', price: 6400, price_visibility: 'show', availability: 'available', public: true, dims: [{ kind: 'work', h: 40, w: 30, unit: 'in' }], private: { notes: 'DELTA-SECRET' } } })).body;
+    await a.call('/api/publish', { method: 'POST', body: {} });
+    const pub = client(s.base);
+    const list = await pub.call(`/g/${su.body.slug}/works/index.html`, { app: false });
+    const slug = list.body.match(/works\/([^/"]+)\/index\.html/)[1];
+    const page = (await pub.call(`/g/${su.body.slug}/works/${slug}/index.html`, { app: false })).body;
+    const ld = JSON.parse(page.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+    assert.equal(ld['@type'], 'VisualArtwork');
+    assert.equal(ld.creator.name, 'Ivo Example');
+    assert.equal(ld.offers.price, 6400);
+    assert.equal(ld.offers.availability, 'https://schema.org/InStock');
+    assert.match(page, /<link rel="canonical" href="https:\/\/catalog\.example\.org\/g\/delta-room\/works\//);
+    assert.match(page, /<form class="inquire" method="post" action="\.\.\/\.\.\/inquire">/);
+    assert.ok(!page.includes('DELTA-SECRET'));
+    const sitemap = await pub.call(`/g/${su.body.slug}/sitemap.xml`, { app: false });
+    assert.match(sitemap.body, /<loc>https:\/\/catalog\.example\.org\/g\/delta-room\/works\//);
+    const form = (fields) => pub.call(`/g/${su.body.slug}/inquire`, { method: 'POST', app: false, raw: new URLSearchParams(fields).toString(), headers: { 'content-type': 'application/x-www-form-urlencoded' } });
+    const ok = await form({ artwork_id: w.id, name: 'Ana Collector', email: 'ana@example.net', message: 'Is this still available?', page: 'works/x/' });
+    assert.match(ok.body, /sent to the gallery/);
+    assert.match((await form({ artwork_id: w.id, name: 'Bot', email: 'bot@example.net', message: 'spam', website: 'http://spam.example' })).body, /Thank you/);
+    assert.match((await form({ name: '', email: 'bad', message: '' })).body, /Message not sent/);
+    const inbox = (await a.call('/api/inquiries')).body;
+    assert.equal(inbox.length, 1, 'honeypot and invalid messages are not stored');
+    assert.equal(inbox[0].title, 'Night Field');
+    const added = (await a.call(`/api/inquiries/${inbox[0].id}`, { method: 'PATCH', body: { add_contact: true } })).body;
+    assert.ok(added.contact_id);
+    for (let i = 0; i < 4; i++) await form({ name: 'X', email: 'x@example.net', message: 'again' });
+    assert.match((await form({ name: 'X', email: 'x@example.net', message: 'again' })).body, /try again later/);
+  } finally { s.stop(); }
+});

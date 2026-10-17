@@ -13,6 +13,7 @@ import { artsyCandidates, buildArtsyPackage, artsyReconciliation, connectors } f
 import { FIELDS, AVAILABILITY } from './lib/fields.mjs';
 import { seedDemo } from './lib/demo-seed.mjs';
 import * as ledger from './lib/ledger.mjs';
+import * as inquiries from './lib/inquiries.mjs';
 
 const ROOT = new URL('.', import.meta.url).pathname;
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -193,7 +194,9 @@ export function createApp({ dataDir, host = '127.0.0.1', hosted = false, quotaBy
       return send(res, 200, { ok: true });
     }
     if (method === 'POST' && p === '/custom-fields') return send(res, 201, store.saveCustomField(db, await json(req)));
-    if (method === 'POST' && p === '/publish') return send(res, 200, buildSite(db, dataDir, siteDir));
+    if (method === 'POST' && p === '/publish') return send(res, 200, buildSite(db, dataDir, siteDir, { inquiryForm: hosted }));
+    if (method === 'GET' && p === '/inquiries') return send(res, 200, inquiries.listInquiries(db, q));
+    if ((r = m(/^\/inquiries\/(iq_\w+)$/)) && method === 'PATCH') return send(res, 200, inquiries.updateInquiry(db, r[1], await json(req)));
     if (method === 'GET' && p === '/export') {
       const { zip, manifest } = exportBundle(db, dataDir);
       const name = `open-gallery-export-${manifest.created_at.slice(0, 19).replace(/[:T]/g, '-')}.zip`;
@@ -275,5 +278,5 @@ export function createApp({ dataDir, host = '127.0.0.1', hosted = false, quotaBy
     }
   };
   const server = createServer(handle);
-  return { server, handle, get db() { return db; }, close: () => { server.close(); db.close(); } };
+  return { server, handle, get db() { return db; }, receiveInquiry: (body) => inquiries.receiveInquiry(db, body), close: () => { server.close(); db.close(); } };
 }

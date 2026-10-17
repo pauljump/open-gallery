@@ -102,7 +102,7 @@ ${STATE.dataDir ? `<p class="muted small" style="margin-top:24px">Workspace fold
     return;
   }
   const last = STATE.lastBuild;
-  const [audit, mon] = await Promise.all([api('/audit?limit=60'), api('/money')]);
+  const [audit, mon, inq] = await Promise.all([api('/audit?limit=60'), api('/money'), api('/inquiries?status=new')]);
   view.innerHTML = `<h1>${esc(STATE.settings.gallery.name)}</h1>
 <p class="sub">${demo ? 'This is the fictional sample gallery. Every artist, work and price is invented. ' : ''}Private workspace on this computer.</p>
 <div class="stats">
@@ -114,6 +114,7 @@ ${s.withoutImages || s.unassignedImages || s.missingFromLastImport ? `<div class
     s.unassignedImages ? `<a href="#/import">${s.unassignedImages} image${s.unassignedImages === 1 ? '' : 's'} not matched to a work</a>` : '',
     s.missingFromLastImport ? `<a href="#/works?visibility=missing">${s.missingFromLastImport} work${s.missingFromLastImport === 1 ? ' was' : 's were'} not in your last spreadsheet</a> (kept, not deleted)` : '',
   ].filter(Boolean).join(' · ')}</div>` : ''}
+${inq.length ? `<div class="notice"><a href="#/contacts"><strong>${inq.length} new inquir${inq.length === 1 ? 'y' : 'ies'}</strong> from your public catalog</a></div>` : ''}
 ${mon.totals.overdue || mon.holdsSoon.length || mon.consignmentsSoon.length ? `<div class="notice ${mon.totals.overdue ? 'bad' : 'warn'}">${[
     mon.totals.overdue ? `<a href="#/money"><strong>${esc(wholeCents(mon.totals.overdue))} overdue</strong> to artists and consignors</a>` : '',
     mon.holdsSoon.length ? `<a href="#/money">${mon.holdsSoon.length} hold${mon.holdsSoon.length === 1 ? '' : 's'} ending within a day</a>` : '',
@@ -938,7 +939,18 @@ async function contacts(_m, qs) {
   view.innerHTML = `<div class="spread"><div><h1>Contacts</h1><p class="sub" style="margin:0">Collectors, consignors and other galleries. Always private.</p></div>
 <form id="new-ct" class="row"><label class="sr" for="ct-name">New contact name</label><input id="ct-name" placeholder="New contact name" style="width:220px" required><button class="primary">Add</button></form></div>
 <div class="filters" style="grid-template-columns:1fr"><div><label for="q">Search</label><input id="q" value="${esc(q)}" placeholder="Name or email" autocomplete="off"></div></div>
+<div id="inq"></div>
 <div id="ct-list"></div>`;
+  const loadInq = async () => {
+    const list = await api('/inquiries');
+    const open = list.filter((i) => i.status !== 'archived');
+    $('#inq').innerHTML = list.length ? `<h2>Inquiries from your catalog</h2>${open.length ? `<ul class="list">${open.map((i) => `<li style="align-items:flex-start"><div class="grow"><strong>${esc(i.name)}</strong> <a href="mailto:${esc(i.email)}?subject=${encodeURIComponent(`Re: ${i.artist ? `${i.artist}, ${i.title}` : 'your inquiry'}`)}">${esc(i.email)}</a> ${i.status === 'new' ? '<span class="pill warn">New</span>' : ''}
+<div class="small muted">${esc(when(i.created_at))}${i.artwork_id ? ` · about <a href="#/works/${i.artwork_id}">${esc(i.artist)}, <i>${esc(i.title)}</i></a>` : ''}</div><div class="small" style="white-space:pre-line;margin-top:4px">${esc(i.message)}</div></div>
+<div class="row">${i.contact_id ? `<a class="btn small" href="#/contacts/${i.contact_id}">Contact</a>` : `<button class="small" data-iq-contact="${i.id}">Add to contacts</button>`}${i.status === 'new' ? `<button class="small" data-iq="${i.id}" data-st="read">Mark read</button>` : ''}<button class="small" data-iq="${i.id}" data-st="archived">Archive</button></div></li>`).join('')}</ul>` : '<p class="small muted">No open inquiries.</p>'}<h2>Contacts</h2>` : '';
+    $$('[data-iq]').forEach((b) => { b.onclick = () => api(`/inquiries/${b.dataset.iq}`, { method: 'PATCH', body: { status: b.dataset.st } }).then(loadInq).catch(fail); });
+    $$('[data-iq-contact]').forEach((b) => { b.onclick = () => api(`/inquiries/${b.dataset.iqContact}`, { method: 'PATCH', body: { add_contact: true, status: 'read' } }).then(() => { toast('Added to contacts'); loadInq(); load(); }).catch(fail); });
+  };
+  loadInq().catch(fail);
   const load = async () => {
     const list = await api(`/contacts?q=${encodeURIComponent($('#q').value)}`);
     $('#ct-list').innerHTML = list.length ? `<div class="tablewrap"><table><thead><tr><th>Name</th><th class="hide-sm">Email</th><th>Purchases</th><th>Holds</th><th>Consigned</th></tr></thead><tbody>
