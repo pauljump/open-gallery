@@ -2,7 +2,7 @@
 
 ## Release 0.4.0: hosted mode and importers
 
-`npm test`: 43 tests, 43 passing. New: hosted accounts (sign-up, sign-in, sign-out, wrong password, duplicate email), two galleries that cannot see each other's works through the list or by id, public catalog pages that exist only after publishing and never include private notes, path traversal refused, cross-site writes refused, unknown hosts refused, sign-in throttling after 20 attempts, the storage limit, and account deletion removing workspace and public pages. Importers: an Artsy-style sheet maps every column and matches images by the file names listed; a unit column sets centimetres; a test website yields both artwork pages (one with structured data, one by page layout), skips the page robots.txt disallows, and its images download once and are recognised as duplicates on a second run. Private and local network addresses are refused in hosted mode.
+`npm test`: 43 tests, 43 passing. New: hosted accounts (sign-up, sign-in, sign-out, wrong password, duplicate email), two galleries that cannot see each other's works through the list or by id, public catalog pages that exist only after publishing and never include private notes, path traversal refused, cross-site writes refused, unknown hosts refused, sign-in throttling after 20 attempts, the storage limit, and account deletion removing workspace and public pages. Importers: a marketplace-style bulk sheet maps every column and matches images by the file names listed; a unit column sets centimetres; a test website yields both artwork pages (one with structured data, one by page layout), skips the page robots.txt disallows, and its images download once and are recognised as duplicates on a second run. Private and local network addresses are refused in hosted mode.
 
 Browser run of hosted mode: sign-up to a working empty workspace in 0.7 s, sample gallery loaded at 3.5 s, public catalog live at /g/<name>/ at 5.7 s with 22 works; a second account saw 0 works; sign-out returned to the sign-in page; no page errors; no horizontal scroll at 390 px.
 
@@ -42,7 +42,7 @@ Measured 2026-10-16 on an Apple M4 Mac mini, macOS, Node.js 22.22.2, using synth
 | Customization | Staff edits, publication choices, exhibition membership, theme and custom CSS survive re-import; sheet-and-staff conflicts default to the staff value and can take the sheet value; the same sheet does not re-ask |
 | Privacy (`test/privacy.test.mjs`) | Every built file (HTML, JSON, CSS, text) scanned for every seeded cost, insurance value, consignor, note, location and unmapped-column value: none found. Unpublished works, private custom fields, hidden prices and exhibition-level price hiding verified. Withdrawn works listed in the feed |
 | Backup (`test/backup.test.mjs`) | Export then restore into an empty folder: equal row counts in every table, equal artwork records, every original image checksum, exhibitions, settings, custom CSS and import files. Restore into a non-empty workspace refused. A single flipped byte in an image refuses the restore and leaves the target empty. A missing or damaged original stops export with a clear message |
-| Artsy file (`test/artsy.test.mjs`) | 150 eligible works produce 2 files of at most 100 rows with images; sold, priceless, yearless, edition and already-listed works skipped with reasons; connector state is "file exchange", never "connected"; README says nothing was sent |
+| Marketplace upload file (`test/artsy.test.mjs`) | 150 eligible works produce 2 files of at most 100 rows with images; sold, priceless, yearless, edition and already-listed works skipped with reasons; connector state is "file exchange", never "connected"; README says nothing was sent |
 | Engine (`test/engine.test.mjs`) | Demo works offline with no key; reopening keeps data; a newer-schema workspace refuses to open and stays intact; a failure in the middle of applying an import leaves no partial changes |
 | Server (`test/server.test.mjs`) | Requests without the app header are refused; foreign Host headers refused; path traversal cannot reach the database |
 
@@ -75,6 +75,6 @@ A workspace created by the first engine commit (`16a2afe`), with a changed accen
 - Screen reader use (VoiceOver, NVDA). Only automated checks were run.
 - The Codex install journey, and any assistant journey run by a real owner.
 - Windows and Linux. Only macOS was tested.
-- Opening the generated XLSX in Excel or Numbers, and uploading the Artsy file to a real Artsy account.
+- Opening the generated XLSX in Excel or Numbers, and uploading the marketplace file to a real account.
 - Removal of camera metadata from public JPEGs (images are re-encoded through the browser canvas, which does not copy metadata, but this was not tested with a real photo).
 - Very large archives (bundles over 4 GB are not supported yet).

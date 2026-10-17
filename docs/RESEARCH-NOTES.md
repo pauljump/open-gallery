@@ -1,17 +1,6 @@
-# Implementation-critical facts, checked 2026-10-16
+# Implementation reference notes, checked 2026-10-16
 
-Public documentation only. No gallery account, partner credential or live integration was used.
-
-## Artsy
-
-- **Bulk import** (partners.artsy.net/product-updates/bulk-import-launch; /bulk-import-updates; /beta-test-bulk-import): one row per artwork, up to 100 per import; .xlsx recommended or .csv. Required: artist name, artwork title, year (single year or range), price (numbers only; currency from account settings; ranges like `5000 - 7500`). Optional fields named: Inventory ID, Medium, Materials, Artwork Dimensions, Framed Dimensions, Certificate of Authenticity, Weight, Artwork Condition, Signature, Classification, Series, Description, Exhibition History, Bibliography, Provenance, Image Rights, Image Files. Images matched by file names listed in "Image Files", separated by `,` or `|`. Units and currency set per batch or artwork in Edit Import Settings. Availability and shipping are completed in CMS after import. Unique works only.
-- **Not verified:** the current CMS template's exact headers (needs a partner login; only the older public template at files.artsy.net was read, which has 10 columns). Open Gallery's file follows the documented field names and relies on Artsy's on-screen column mapping.
-- **API:** developers.artsy.net states the public API is being retired and partner API integrations are not affected; partner galleries are directed to their Artsy liaison. The API v1 samples repository describes access granted by Artsy and "not for public consumption". Conclusion: no self-serve API path; file exchange is the honest integration until access is granted.
-- **Terms** (artsy.net/terms, as summarized in the research brief): users retain their intellectual-property rights in content they upload while granting Artsy a broad license. Open Gallery's public copy must not claim Artsy owns uploaded artwork.
-
-## Artnet
-
-- No public inventory write API or documented upload format was found. Open Gallery keeps Artnet listing links and does not produce an "Artnet" file.
+Public documentation only.
 
 ## Reference projects for install, backup and upgrade
 

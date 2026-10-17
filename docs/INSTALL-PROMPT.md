@@ -2,7 +2,7 @@
 
 Paste this into Claude (Claude Code or the desktop app with file access) or Codex on the computer where you want Open Gallery to run:
 
-> Set up Open Gallery from https://github.com/pauljump/open-gallery using a copy of my inventory and images. Keep my current website, Artsy and Artnet accounts unchanged. Show me a private preview first. Help me match the artwork records, choose a visual style, and create an exhibition catalog. Explain any paid service or public change before doing it. Make sure I can export and restore everything.
+> Set up Open Gallery from https://github.com/pauljump/open-gallery using a copy of my inventory and images. Keep my current website and marketplace accounts unchanged. Show me a private preview first. Help me match the artwork records, choose a visual style, and create an exhibition catalog. Explain any paid service or public change before doing it. Make sure I can export and restore everything.
 
 The assistant should follow the instructions in the repository's `AGENTS.md`. You should expect it to:
 
@@ -14,7 +14,7 @@ The assistant should follow the instructions in the repository's `AGENTS.md`. Yo
 6. Make one exhibition and open its printable catalog.
 7. Make an export, restore it into a scratch folder to prove it works, then delete the scratch copy.
 
-It should **not**: sign you up for anything, upload anything, change your domain or website, contact Artsy or Artnet, or call a paid AI service without asking you first.
+It should **not**: sign you up for anything, upload anything, change your domain or website, contact any marketplace, or call a paid AI service without asking you first.
 
 After setup you do not need the assistant. Open Gallery is an ordinary app: run `open-gallery start --open` (or the shortcut the assistant made) and use it in your browser.
 

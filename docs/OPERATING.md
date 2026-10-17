@@ -11,7 +11,7 @@ Start: `open-gallery start --open` (or `node bin/open-gallery.mjs start --open` 
 - **A work**: edit any field, add or reorder images, choose which images are public. The right-hand panel shows exactly what the public will see.
 - **Exhibitions**: create one, add works, reorder, write the introduction, choose a layout. **Printable catalog** opens a page you print or save as PDF.
 - **Import**: bring in a newer copy of your spreadsheet whenever you like. Review, then apply.
-- **Publish**: build the public catalog folder, preview it, and prepare Artsy upload files.
+- **Publish**: build the public catalog folder, preview it, and prepare marketplace upload files.
 - **Backup**: download a full export, check the workspace, or restore into an empty workspace.
 
 ## Consignments, holds, sales and payouts

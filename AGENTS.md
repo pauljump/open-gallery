@@ -24,7 +24,7 @@ All commands run from the app folder as `node bin/open-gallery.mjs <command>`. `
    - New fields: Settings > Your own fields, with an explicit private/public choice.
 8. Prove recovery: `export --out /tmp/og-test.zip`, then `restore /tmp/og-test.zip --data /tmp/og-restore-test`, confirm `"ok": true`, then delete both test copies.
 9. Ask before anything public or paid: uploading the built site, buying a domain, choosing a host, enabling any AI provider. There is no paid call anywhere in the core app.
-10. Do not log into Artsy or Artnet, scrape them, or claim a sync. Listing links are kept; the Artsy file is uploaded by the owner.
+10. Do not log into the gallery's marketplace accounts, scrape marketplaces, or claim a sync. Listing links are kept; marketplace upload files are uploaded by the owner.
 
 ## Architecture
 
@@ -35,7 +35,7 @@ All commands run from the app folder as `node bin/open-gallery.mjs <command>`. `
 - `lib/site.mjs` `publicArtwork()` is the **only** path to public output and is an allowlist. Never read `private`, `extra`, `origin` or location in public code. `test/privacy.test.mjs` scans every built file for seeded private values.
 - `lib/importer.mjs` preview/apply. Per-field origin tracking (`origin[field] = {by, imported}`) is how re-imports distinguish sheet edits from staff edits. Sold works are never un-sold by an import without an explicit per-field choice. Missing rows are flagged, never deleted.
 - `lib/backup.mjs` export ZIP with SHA-256 manifest; restore only into an empty workspace, verifying every file first.
-- `lib/artsy.mjs` file exchange only. Connector states: `not_connected`, `file_exchange`, `api_connected` (unused until real authorized access exists), `attention`.
+- `lib/artsy.mjs` marketplace file exchange only. Connector states: `not_connected`, `file_exchange`, `api_connected` (unused until real authorized access exists), `attention`.
 
 ## Rules
 

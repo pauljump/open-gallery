@@ -34,7 +34,7 @@ Every public build writes `catalog.json` next to the HTML pages. It contains onl
 | `signature`, `provenance`, `exhibition_history`, `literature`, `description`, `image_credit` | Public text as entered. |
 | `custom` | Gallery-defined fields the gallery marked as publishable, keyed by label. |
 | `images` | `{ url, sha256_original, width, height, caption }`. `sha256_original` identifies the original file in the gallery's private archive; the published file is usually a smaller web copy. |
-| `links` | Existing listings: `{ channel: "artsy"|"artnet"|"website", url }`. Purchases there follow that site's terms. |
+| `links` | Existing listings: `{ channel, url }` (a marketplace or the gallery website). Purchases there follow that site's terms. |
 | `updated_at`, `first_published_at` | Timestamps. |
 
 ## Withdrawal and corrections

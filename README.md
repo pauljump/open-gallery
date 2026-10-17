@@ -1,6 +1,6 @@
 # Open Gallery
 
-Free, open source inventory and catalog software for galleries. It runs on your own computer, works from a copy of the spreadsheet and images you already have, and leaves Artsy, Artnet, your website and your sales process exactly as they are.
+Free, open source inventory and catalog software for galleries. It runs on your own computer, works from a copy of the spreadsheet and images you already have, and leaves your marketplace listings, your website and your sales process exactly as they are.
 
 **Keep your marketplaces. Own your catalog.**
 
@@ -12,9 +12,9 @@ What it does today (version 0.3):
 - **Edit works**: artists, dimensions (work and framed, inches or centimetres), prices, availability, location, private notes, your own custom fields, and images matched by file name.
 - **Track who owns each work and what you owe.** Record consignments from artists or collectors (split, discount limit, who absorbs a discount, dates, insurance), holds with expiry and a queue, and sales with deposits, payments, tax and deductions. Open Gallery works out what each artist or consignor is owed and when it is due, shows what is overdue, records payouts, and prints a clear statement for each artist. An accounting CSV goes to your bookkeeper. All of it is private.
 - **Build exhibitions** with your order, text and layout, plus a printable catalog you can save as a PDF.
-- **Publish a public catalog** made only from works and fields you approve. Location, costs, consignors, buyers, notes and unmapped columns are never written to public files. Existing Artsy, Artnet and website listing links stay on each work.
+- **Publish a public catalog** made only from works and fields you approve. Location, costs, consignors, buyers, notes and unmapped columns are never written to public files. Existing marketplace and website listing links stay on each work.
 - **Export everything** to one ZIP: original images, every record and relationship, settings, custom styles, your original import files, and plain spreadsheets. **Restore** it into a fresh installation, with every file checked against its checksum.
-- **Prepare an Artsy bulk-import file** for new works you choose, and a checklist for works already listed. Open Gallery has no Artsy or Artnet account access; nothing is sent anywhere.
+- **Prepare a marketplace bulk-import file** for new works you choose, and a checklist for works already listed. Open Gallery has no access to your marketplace accounts; nothing is sent anywhere.
 
 No account, subscription, commission or AI service is needed for any of this.
 
@@ -27,7 +27,7 @@ The same software runs in two ways:
 
 ## Importing from what you already have
 
-- **Spreadsheets** from any system: columns are matched automatically, including exports laid out like Artlogic, ArtCloud or an Artsy bulk-import sheet. A unit column (in/cm) and an image file names column are understood.
+- **Spreadsheets** from any system: columns are matched automatically, including exports from common gallery systems and marketplace bulk-import sheets. A unit column (in/cm) and an image file names column are understood.
 - **Image links**: if your spreadsheet has image web addresses, Open Gallery downloads them after the import.
 - **Your own website**: give the address of your gallery's site. Open Gallery reads its public pages (respecting robots.txt), finds artwork pages from structured data or page layout, and turns them into a spreadsheet you review before anything is saved.
 
@@ -51,7 +51,7 @@ Everything is in one folder you choose (default `~/Open Gallery`): a SQLite data
 
 ## What it is not (yet)
 
-- Not a live sync with Artsy or Artnet. There is no approved API access. Listing links are kept, and Artsy files are prepared for you to upload yourself.
+- Not a live sync with any marketplace. There is no approved API access. Listing links are kept, and upload files are prepared for you to upload yourself.
 - Not a shop. Public pages offer an email draft to the gallery and links to your existing listings. There is no checkout, so a work cannot be sold twice through Open Gallery.
 - Not a multi-user server. It is built and tested for one computer. A shared office setup needs authentication that is not built yet.
 - Not hosting. The public catalog is a folder of files you upload to a host of your choice. See [docs/COSTS.md](docs/COSTS.md).

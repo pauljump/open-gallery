@@ -9,7 +9,7 @@
 7. **Edition parents and physical units**: today an edition is a text field on one record.
 8. **Location history, condition reports and documents** attached to works.
 8. **Optional local AI** (off by default, owner-configured, e.g. Ollama): describe images, draft captions, suggest column mappings. Must never fall back to a paid service and must be benchmarked for correctness first.
-9. **Artsy partner access**: if Artsy grants access, start read-only, match external ids, dry-run differences, pilot a handful of works. Until then, file exchange only.
+9. **Approved marketplace connections**: if a marketplace grants API access, start read-only, match external ids, dry-run differences, pilot a handful of works. Until then, file exchange only.
 10. **Shared, opt-in discovery**: an association-run index that reads galleries' `catalog.json` feeds and honours withdrawals.
 11. **ZIP64** for exports over 4 GB; incremental exports.
 12. **Multi-user office server**: authentication, concurrent edits, scheduled backups.
